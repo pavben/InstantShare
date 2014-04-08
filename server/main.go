@@ -39,7 +39,7 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 			} else if method == "PUT" {
 				// uploading a file
 			} else {
-				http.Error(res, "Method Not Allowed", 405)
+				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getid" && method == "GET":
 			goon.Dump(req)
@@ -50,19 +50,25 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 
 			res.Write([]byte(newFileId))
 		default:
-			http.Error(res, "Not Found", 404)
+			http.NotFound(res, req)
 		}
 	})
 }
 
 func urlPathToArray(path string) []string {
-	var pathComponents []string
+	splitPath := strings.Split(path, "/")
 
-	for _, pathComponent := range strings.Split(path, "/") {
-		if len(pathComponent) > 0 {
-			pathComponents = append(pathComponents, pathComponent)
-		}
+	startIdx := 0
+
+	if len(splitPath) >= 1 && splitPath[startIdx] == "" {
+		startIdx += 1
 	}
 
-	return pathComponents
+	endIdx := len(splitPath) - 1
+
+	if len(splitPath) >= 1 && splitPath[endIdx] == "" {
+		endIdx -= 1
+	}
+
+	return splitPath[startIdx : endIdx+1]
 }
