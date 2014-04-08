@@ -1,4 +1,4 @@
 InstantShare
 ============
 
-Instantly share images/files on the web
+Instantly share images/files on the web.
