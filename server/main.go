@@ -3,15 +3,43 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
-
-	"github.com/shurcooL/go-goon"
 )
+
+const maxFileSize = 200 * 1024 * 1024
 
 func main() {
 	activeFileManager := NewActiveFileManager()
 
 	webHandler := getWebHandler(activeFileManager)
+
+	/*
+		activeFileManager.PrepareUpload(GenerateNewFileID, "USERKEYTODO")
+
+		go func() {
+			time.Sleep(10 * time.Second)
+
+			reader := activeFileManager.GetReaderForFileId("fileid")
+
+			log.Println("Got reader", reader)
+
+			for {
+				buf := make([]byte, 20, 20)
+
+				log.Println("Reading...")
+
+				n, err := reader.Read(buf)
+
+				log.Printf("READ %d bytes, err = %v, buf = %v\n", n, err, buf)
+
+				if err == io.EOF {
+					log.Println("Done reading")
+					break
+				}
+			}
+		}()
+	*/
 
 	err := http.ListenAndServe(":27080", webHandler)
 
@@ -38,11 +66,12 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 				// request for a file
 			} else if method == "PUT" {
 				// uploading a file
+				handlePutFile(res, req, path[0], activeFileManager)
 			} else {
 				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getid" && method == "GET":
-			goon.Dump(req)
+			//goon.Dump(req)
 
 			newFileId := activeFileManager.PrepareUpload(GenerateNewFileID, "USERKEYTODO")
 
@@ -53,6 +82,31 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 			http.NotFound(res, req)
 		}
 	})
+}
+
+func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, activeFileManager *ActiveFileManager) {
+	contentType := req.Header.Get("Content-Type")
+
+	if contentType == "" {
+		http.Error(res, "Bad Request: Missing required Content-Type header", http.StatusBadRequest)
+		return
+	}
+
+	if req.ContentLength < 1 {
+		http.Error(res, "Bad Request: Content-Length is required and must be positive", http.StatusBadRequest)
+		return
+	}
+
+	if req.ContentLength >= maxFileSize {
+		http.Error(res, "Bad Request: File to upload exceeds "+strconv.Itoa(maxFileSize), http.StatusBadRequest)
+		return
+	}
+
+	err := activeFileManager.Upload(fileName, req.Body, contentType, int(req.ContentLength), "USERKEYTODO")
+
+	if err != nil {
+		http.Error(res, "Error: "+err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func urlPathToArray(path string) []string {
