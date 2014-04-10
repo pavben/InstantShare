@@ -16,13 +16,13 @@ var (
 )
 
 type ActiveFileManager struct {
-	activeFiles map[FileId]*ActiveFile
+	activeFiles map[string]*ActiveFile
 
 	sync.RWMutex
 }
 
 type ActiveFile struct {
-	fileId            FileId
+	fileName          string
 	currentUpload     *currentUpload
 	readLocker        sync.Locker
 	dataAvailableCond *sync.Cond
@@ -42,32 +42,31 @@ type ActiveFileReader struct {
 
 type currentUpload struct {
 	contentType    string
-	fileExtension  string
 	bytesWritten   int
 	totalFileBytes int
 }
 
 func NewActiveFileManager() *ActiveFileManager {
 	return &ActiveFileManager{
-		activeFiles: make(map[FileId]*ActiveFile),
+		activeFiles: make(map[string]*ActiveFile),
 	}
 }
 
-func (self *ActiveFileManager) PrepareUpload(generateFileIdFunc func() FileId, userKey string) FileId {
+func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey string) string {
 	self.Lock()
 
 	defer self.Unlock()
 
 	for {
-		fileId := generateFileIdFunc()
+		fileName := GenerateRandomString() + "." + fileExtension
 
-		fileId = "fileid" // HACK
+		fileName = "file.png" // HACK
 
-		_, exists := self.activeFiles[fileId]
+		_, exists := self.activeFiles[fileName]
 
 		if !exists {
 			activeFile := &ActiveFile{
-				fileId:            fileId,
+				fileName:          fileName,
 				currentUpload:     nil,
 				readLocker:        nil,
 				dataAvailableCond: nil,
@@ -78,16 +77,15 @@ func (self *ActiveFileManager) PrepareUpload(generateFileIdFunc func() FileId, u
 
 			activeFile.dataAvailableCond = sync.NewCond(activeFile.readLocker)
 
-			self.activeFiles[fileId] = activeFile
+			self.activeFiles[fileName] = activeFile
 
-			return fileId
+			return fileName
 		}
 	}
 }
 
 func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, contentType string, contentLength int, userKey string) (err error) {
-	fileId := FileId(fileName) // TODO: handle extension
-	filePath := "files/" + string(fileId)
+	filePath := FileNameToPath(fileName)
 
 	// prepare upload
 	activeFile, err := func() (*ActiveFile, error) {
@@ -95,11 +93,10 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 
 		defer self.Unlock()
 
-		if activeFile, exists := self.activeFiles[fileId]; exists {
+		if activeFile, exists := self.activeFiles[fileName]; exists {
 			if activeFile.currentUpload == nil {
 				activeFile.currentUpload = &currentUpload{
 					contentType:    contentType,
-					fileExtension:  ".png", // TODO: extension
 					bytesWritten:   0,
 					totalFileBytes: contentLength,
 				}
@@ -176,7 +173,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 
 					defer self.Unlock()
 
-					delete(self.activeFiles, fileId)
+					delete(self.activeFiles, fileName)
 				}()
 
 				return nil
@@ -188,12 +185,12 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	}
 }
 
-func (self *ActiveFileManager) GetReaderForFileId(fileId FileId) io.ReadCloser {
+func (self *ActiveFileManager) GetReaderForFileName(fileName string) io.ReadCloser {
 	self.RLock()
 
 	defer self.RUnlock()
 
-	if activeFile, exists := self.activeFiles[fileId]; exists {
+	if activeFile, exists := self.activeFiles[fileName]; exists {
 		return activeFile.GetReader()
 	} else {
 		return nil
@@ -237,7 +234,7 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 
 	if self.file == nil {
 		// TODO: auto-create "files"
-		file, err := os.Open("files/" + string(self.activeFile.fileId))
+		file, err := os.Open(FileNameToPath(self.activeFile.fileName))
 
 		if err != nil {
 			return 0, err

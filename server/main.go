@@ -3,8 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/shurcooL/go-goon"
 )
 
 const maxFileSize = 200 * 1024 * 1024
@@ -63,6 +66,7 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 		switch {
 		case len(path) == 1:
 			if method == "GET" {
+				//goon.Dump(req)
 				// request for a file
 			} else if method == "PUT" {
 				// uploading a file
@@ -70,14 +74,35 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 			} else {
 				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
-		case len(path) == 2 && path[0] == "api" && path[1] == "getid" && method == "GET":
-			//goon.Dump(req)
+		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
+			goon.Dump(req)
 
-			newFileId := activeFileManager.PrepareUpload(GenerateNewFileID, "USERKEYTODO")
+			query, err := url.ParseQuery(req.URL.RawQuery)
 
-			log.Println("/api/getid returning", newFileId)
+			if err != nil {
+				http.Error(res, "Bad Request: Invalid query parameters", http.StatusBadRequest)
+				return
+			}
 
-			res.Write([]byte(newFileId))
+			fileExtension, fileExtensionProvided := query["ext"]
+
+			if !fileExtensionProvided {
+				http.Error(res, "Bad Request: Missing file extension parameter", http.StatusBadRequest)
+				return
+			}
+
+			goon.Dump(query)
+
+			// CHECK: Can len(fileExtension) == 0?
+			if len(fileExtension) < 1 {
+				return
+			}
+
+			newFilename := activeFileManager.PrepareUpload(fileExtension[0], "USERKEYTODO")
+
+			log.Println("/api/getfilename returning", newFilename)
+
+			res.Write([]byte(newFilename))
 		default:
 			http.NotFound(res, req)
 		}
@@ -125,4 +150,8 @@ func urlPathToArray(path string) []string {
 	}
 
 	return splitPath[startIdx : endIdx+1]
+}
+
+func FileNameToPath(fileName string) string {
+	return "files/" + fileName
 }
