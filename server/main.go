@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -15,7 +17,14 @@ const maxFileSize = 200 * 1024 * 1024
 func main() {
 	activeFileManager := NewActiveFileManager()
 
-	webHandler := getWebHandler(activeFileManager)
+	fileStore, err := NewDiskFileStore()
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	webHandler := getWebHandler(activeFileManager, fileStore)
 
 	/*
 		activeFileManager.PrepareUpload(GenerateNewFileID, "USERKEYTODO")
@@ -44,7 +53,7 @@ func main() {
 		}()
 	*/
 
-	err := http.ListenAndServe(":27080", webHandler)
+	err = http.ListenAndServe(":27080", webHandler)
 
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
@@ -58,7 +67,7 @@ func main() {
 	}
 }
 
-func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
+func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		method := req.Method
 		path := urlPathToArray(req.URL.Path)
@@ -68,6 +77,45 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 			if method == "GET" {
 				//goon.Dump(req)
 				// request for a file
+
+				fileName := path[0]
+
+				reader := getReaderForFileName(fileName, activeFileManager, fileStore)
+
+				if reader == nil {
+					http.NotFound(res, req)
+					return
+				}
+
+				defer reader.Close()
+
+				// stream the reader to the response
+
+				// TODO: content type
+				res.Header().Add("Content-Type", "image/jpeg")
+
+				// TODO: length of file
+
+				buf := make([]byte, 1024) // TODO: real buffer size
+
+				for {
+					bytesRead, err := reader.Read(buf)
+
+					if bytesRead > 0 {
+						fmt.Println("Writing", bytesRead, "bytes to response")
+						res.Write(buf[:bytesRead])
+						//fl, _ := res.(http.Flusher)
+
+						//fl.Flush()
+					}
+
+					if err != nil {
+						// whether the error is EOF or something else, stop streaming
+
+						// TODO: how I end the request?
+						return
+					}
+				}
 			} else if method == "PUT" {
 				// uploading a file
 				handlePutFile(res, req, path[0], activeFileManager)
@@ -90,8 +138,6 @@ func getWebHandler(activeFileManager *ActiveFileManager) http.Handler {
 				http.Error(res, "Bad Request: Missing file extension parameter", http.StatusBadRequest)
 				return
 			}
-
-			goon.Dump(query)
 
 			// CHECK: Can len(fileExtension) == 0?
 			if len(fileExtension) < 1 {
@@ -134,6 +180,22 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 	}
 }
 
+func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager, fileStore FileStore) io.ReadCloser {
+	activeFileReader := activeFileManager.GetReaderForFileName(fileName)
+
+	if activeFileReader != nil {
+		return activeFileReader
+	}
+
+	file := fileStore.GetFile(fileName)
+
+	if file != nil {
+		return file
+	}
+
+	return nil
+}
+
 func urlPathToArray(path string) []string {
 	splitPath := strings.Split(path, "/")
 
@@ -150,8 +212,4 @@ func urlPathToArray(path string) []string {
 	}
 
 	return splitPath[startIdx : endIdx+1]
-}
-
-func FileNameToPath(fileName string) string {
-	return "files/" + fileName
 }

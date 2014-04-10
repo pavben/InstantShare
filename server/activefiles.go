@@ -60,7 +60,7 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 	for {
 		fileName := GenerateRandomString() + "." + fileExtension
 
-		fileName = "file.png" // HACK
+		fileName = "file.jpg" // HACK
 
 		_, exists := self.activeFiles[fileName]
 
@@ -130,7 +130,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 		activeFile.aborted = true
 	}()
 
-	buf := make([]byte, 2)
+	buf := make([]byte, 250000)
 
 	for {
 		log.Println("Waiting..")
