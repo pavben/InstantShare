@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"os"
 	"sync"
 	"time"
 )
@@ -17,6 +16,7 @@ var (
 
 type ActiveFileManager struct {
 	activeFiles map[string]*ActiveFile
+	fileStore   FileStore
 
 	sync.RWMutex
 }
@@ -34,21 +34,21 @@ type ActiveFile struct {
 
 type ActiveFileReader struct {
 	activeFile *ActiveFile
-	file       *os.File
+	fileReader FileReader
 	bytesRead  int
 
 	sync.Mutex
 }
 
 type currentUpload struct {
-	contentType    string
 	bytesWritten   int
 	totalFileBytes int
 }
 
-func NewActiveFileManager() *ActiveFileManager {
+func NewActiveFileManager(fileStore FileStore) *ActiveFileManager {
 	return &ActiveFileManager{
 		activeFiles: make(map[string]*ActiveFile),
+		fileStore:   fileStore,
 	}
 }
 
@@ -84,9 +84,7 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 	}
 }
 
-func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, contentType string, contentLength int, userKey string) (err error) {
-	filePath := FileNameToPath(fileName)
-
+func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, contentLength int, userKey string) (err error) {
 	// prepare upload
 	activeFile, err := func() (*ActiveFile, error) {
 		self.Lock()
@@ -94,15 +92,19 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 		defer self.Unlock()
 
 		if activeFile, exists := self.activeFiles[fileName]; exists {
+			activeFile.Lock()
+
+			defer activeFile.Unlock()
+
 			if activeFile.currentUpload == nil {
 				activeFile.currentUpload = &currentUpload{
-					contentType:    contentType,
-					bytesWritten:   0,
+					bytesWritten:   -1,
 					totalFileBytes: contentLength,
 				}
 
 				return activeFile, nil
 			} else {
+
 				return nil, ErrAlreadyUploading
 			}
 		} else {
@@ -114,17 +116,28 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 		return err
 	}
 
-	outputFile, err := os.Create(filePath)
+	fileWriter, err := self.fileStore.GetFileWriter(fileName)
 
 	if err != nil {
 		return err
 	}
 
+	// now that the file has been created, indicate that by setting bytesWritten to 0
+	func() {
+		self.Lock()
+
+		defer self.Unlock()
+
+		activeFile.currentUpload.bytesWritten = 0
+	}()
+
+	activeFile.dataAvailableCond.Broadcast()
+
 	defer func() {
-		outputFile.Close()
+		fileWriter.Close()
 
 		if err != nil {
-			os.Remove(filePath)
+			self.fileStore.RemoveFile(fileName)
 		}
 
 		activeFile.aborted = true
@@ -141,16 +154,9 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 
 		if bytesRead > 0 {
 			log.Printf("Writing [%v]\n", buf[:bytesRead])
-			_, err := outputFile.Write(buf[:bytesRead])
+			_, err := fileWriter.Write(buf[:bytesRead])
 
 			log.Println("Write result, err =", err)
-
-			if err != nil {
-				return err
-			}
-
-			// flush the chunk to disk so that it can be accessed by readers immediately after we notify
-			err = outputFile.Sync()
 
 			if err != nil {
 				return err
@@ -186,21 +192,53 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 }
 
 func (self *ActiveFileManager) GetReaderForFileName(fileName string) FileReader {
-	self.RLock()
+	activeFile := func() *ActiveFile {
+		self.RLock()
 
-	defer self.RUnlock()
+		defer self.RUnlock()
 
-	if activeFile, exists := self.activeFiles[fileName]; exists {
-		return activeFile.GetReader()
-	} else {
+		if activeFile, exists := self.activeFiles[fileName]; exists {
+			return activeFile
+		} else {
+			return nil
+		}
+	}()
+
+	if activeFile == nil {
 		return nil
 	}
+
+	return activeFile.GetReader(self.fileStore)
 }
 
-func (self *ActiveFile) GetReader() FileReader {
+// This will block until activeFile.currentUpload is set and the file writer has been created
+func (self *ActiveFile) GetReader(fileStore FileStore) FileReader {
+	self.readLocker.Lock()
+
+	defer self.readLocker.Unlock()
+
+	if self.aborted {
+		return nil
+	}
+
+	// wait until the file is created
+	for self.currentUpload == nil || self.currentUpload.bytesWritten < 0 {
+		self.dataAvailableCond.Wait()
+
+		if self.aborted {
+			return nil
+		}
+	}
+
+	fileReader, err := fileStore.GetFileReader(self.fileName)
+
+	if err != nil {
+		return nil
+	}
+
 	return &ActiveFileReader{
 		activeFile: self,
-		file:       nil,
+		fileReader: fileReader,
 		bytesRead:  0,
 	}
 }
@@ -210,19 +248,6 @@ func (self *ActiveFileReader) ContentType() string {
 }
 
 func (self *ActiveFileReader) Size() (int, error) {
-	self.activeFile.readLocker.Lock()
-
-	defer self.activeFile.readLocker.Unlock()
-
-	// wait until currentUpload is available
-	for self.activeFile.currentUpload == nil {
-		self.activeFile.dataAvailableCond.Wait()
-
-		if self.activeFile.aborted {
-			return -1, ErrUploadAborted
-		}
-	}
-
 	return self.activeFile.currentUpload.totalFileBytes, nil
 }
 
@@ -233,25 +258,6 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 
 	if self.activeFile.aborted {
 		return 0, ErrUploadAborted
-	}
-
-	// wait until the file starts being written
-	for self.activeFile.currentUpload == nil {
-		self.activeFile.dataAvailableCond.Wait()
-
-		if self.activeFile.aborted {
-			return 0, ErrUploadAborted
-		}
-	}
-
-	if self.file == nil {
-		file, err := os.Open(FileNameToPath(self.activeFile.fileName))
-
-		if err != nil {
-			return 0, err
-		}
-
-		self.file = file
 	}
 
 	// if done reading
@@ -268,7 +274,7 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 		}
 	}
 
-	n, err := self.file.Read(p)
+	n, err := self.fileReader.Read(p)
 
 	self.bytesRead += n
 
@@ -281,9 +287,5 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 }
 
 func (self *ActiveFileReader) Close() error {
-	if self.file != nil {
-		return self.file.Close()
-	} else {
-		return nil
-	}
+	return self.fileReader.Close()
 }

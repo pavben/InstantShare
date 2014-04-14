@@ -33,29 +33,37 @@ func NewDiskFileStore() (FileStore, error) {
 	return fileStore, nil
 }
 
-func (self *DiskFileStore) GetFileReader(fileName string) FileReader {
-	file, err := os.Open(FileNameToPath(fileName))
+func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
+	file, err := os.Open(fileNameToPath(fileName))
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return &DiskFileReader{
+	diskFileReader := &DiskFileReader{
 		file:        file,
 		contentType: ContentTypeFromFileName(fileName),
 	}
+
+	return diskFileReader, nil
 }
 
-func (self *DiskFileStore) GetFileWriter(fileName string) FileWriter {
-	file, err := os.Create(FileNameToPath(fileName))
+func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
+	file, err := os.Create(fileNameToPath(fileName))
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return &DiskFileWriter{
+	diskFileWriter := &DiskFileWriter{
 		file: file,
 	}
+
+	return diskFileWriter, nil
+}
+
+func (self *DiskFileStore) RemoveFile(fileName string) error {
+	return os.Remove(fileNameToPath(fileName))
 }
 
 type DiskFileReader struct {
@@ -124,7 +132,6 @@ func (self *DiskFileWriter) Close() (err error) {
 	return
 }
 
-// TODO: this is to be hidden from outside
-func FileNameToPath(fileName string) string {
+func fileNameToPath(fileName string) string {
 	return basePath + fileName
 }

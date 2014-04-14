@@ -1,8 +1,9 @@
 package main
 
 type FileStore interface {
-	GetFileReader(fileName string) FileReader
-	GetFileWriter(fileName string) FileWriter
+	GetFileReader(fileName string) (FileReader, error)
+	GetFileWriter(fileName string) (FileWriter, error)
+	RemoveFile(fileName string) error
 }
 
 type FileReader interface {

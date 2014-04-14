@@ -14,8 +14,6 @@ import (
 const maxFileSize = 200 * 1024 * 1024
 
 func main() {
-	activeFileManager := NewActiveFileManager()
-
 	fileStore, err := NewDiskFileStore()
 
 	if err != nil {
@@ -23,34 +21,9 @@ func main() {
 		return
 	}
 
+	activeFileManager := NewActiveFileManager(fileStore)
+
 	webHandler := getWebHandler(activeFileManager, fileStore)
-
-	/*
-		activeFileManager.PrepareUpload(GenerateNewFileID, "USERKEYTODO")
-
-		go func() {
-			time.Sleep(10 * time.Second)
-
-			reader := activeFileManager.GetReaderForFileId("fileid")
-
-			log.Println("Got reader", reader)
-
-			for {
-				buf := make([]byte, 20, 20)
-
-				log.Println("Reading...")
-
-				n, err := reader.Read(buf)
-
-				log.Printf("READ %d bytes, err = %v, buf = %v\n", n, err, buf)
-
-				if err == io.EOF {
-					log.Println("Done reading")
-					break
-				}
-			}
-		}()
-	*/
 
 	err = http.ListenAndServe(":27080", webHandler)
 
@@ -176,7 +149,7 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 		return
 	}
 
-	err := activeFileManager.Upload(fileName, req.Body, contentType, int(req.ContentLength), "USERKEYTODO")
+	err := activeFileManager.Upload(fileName, req.Body, int(req.ContentLength), "USERKEYTODO")
 
 	if err != nil {
 		http.Error(res, "Error: "+err.Error(), http.StatusInternalServerError)
@@ -184,13 +157,19 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 }
 
 func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager, fileStore FileStore) FileReader {
-	activeFileReader := activeFileManager.GetReaderForFileName(fileName)
+	fileReader := activeFileManager.GetReaderForFileName(fileName)
 
-	if activeFileReader != nil {
-		return activeFileReader
+	if fileReader != nil {
+		return fileReader
 	}
 
-	return fileStore.GetFileReader(fileName)
+	fileReader, err := fileStore.GetFileReader(fileName)
+
+	if err != nil {
+		return nil
+	}
+
+	return fileReader
 }
 
 func urlPathToArray(path string) []string {
