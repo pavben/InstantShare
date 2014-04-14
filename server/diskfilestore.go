@@ -33,23 +33,41 @@ func NewDiskFileStore() (FileStore, error) {
 	return fileStore, nil
 }
 
-func (self *DiskFileStore) GetFile(fileName string) File {
+func (self *DiskFileStore) GetFileReader(fileName string) FileReader {
 	file, err := os.Open(FileNameToPath(fileName))
 
 	if err != nil {
 		return nil
 	}
 
-	return &DiskFile{
+	return &DiskFileReader{
+		file:        file,
+		contentType: ContentTypeFromFileName(fileName),
+	}
+}
+
+func (self *DiskFileStore) GetFileWriter(fileName string) FileWriter {
+	file, err := os.Create(FileNameToPath(fileName))
+
+	if err != nil {
+		return nil
+	}
+
+	return &DiskFileWriter{
 		file: file,
 	}
 }
 
-type DiskFile struct {
-	file *os.File
+type DiskFileReader struct {
+	file        *os.File
+	contentType string
 }
 
-func (self *DiskFile) Size() (int, error) {
+func (self *DiskFileReader) ContentType() string {
+	return self.contentType
+}
+
+func (self *DiskFileReader) Size() (int, error) {
 	fileInfo, err := self.file.Stat()
 
 	if err != nil {
@@ -65,11 +83,38 @@ func (self *DiskFile) Size() (int, error) {
 	return int(fileSizeInt64), nil
 }
 
-func (self *DiskFile) Read(p []byte) (int, error) {
+func (self *DiskFileReader) Read(p []byte) (int, error) {
 	return self.file.Read(p)
 }
 
-func (self *DiskFile) Close() (err error) {
+func (self *DiskFileReader) Close() (err error) {
+	err = self.file.Close()
+
+	if err == nil {
+		self.file = nil
+	}
+
+	return
+}
+
+type DiskFileWriter struct {
+	file *os.File
+}
+
+func (self *DiskFileWriter) Write(p []byte) (int, error) {
+	bytesWritten, err := self.file.Write(p)
+
+	if err != nil {
+		return bytesWritten, err
+	}
+
+	// the data written must be available for reading immediately as Write returns
+	err = self.file.Sync()
+
+	return bytesWritten, err
+}
+
+func (self *DiskFileWriter) Close() (err error) {
 	err = self.file.Close()
 
 	if err == nil {

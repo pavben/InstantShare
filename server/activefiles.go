@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrAlreadyUploading = errors.New("That file is already uploading or failed")
-	ErrInvalidFileId    = errors.New("Invalid File ID")
+	ErrNoPreparedUpload = errors.New("No prepared upload with this filename")
 	ErrUploadAborted    = errors.New("Upload aborted")
 )
 
@@ -106,7 +106,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 				return nil, ErrAlreadyUploading
 			}
 		} else {
-			return nil, ErrInvalidFileId
+			return nil, ErrNoPreparedUpload
 		}
 	}()
 
@@ -185,7 +185,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	}
 }
 
-func (self *ActiveFileManager) GetReaderForFileName(fileName string) io.ReadCloser {
+func (self *ActiveFileManager) GetReaderForFileName(fileName string) FileReader {
 	self.RLock()
 
 	defer self.RUnlock()
@@ -197,7 +197,7 @@ func (self *ActiveFileManager) GetReaderForFileName(fileName string) io.ReadClos
 	}
 }
 
-func (self *ActiveFile) GetReader() io.ReadCloser {
+func (self *ActiveFile) GetReader() FileReader {
 	return &ActiveFileReader{
 		activeFile: self,
 		file:       nil,
@@ -205,21 +205,33 @@ func (self *ActiveFile) GetReader() io.ReadCloser {
 	}
 }
 
+func (self *ActiveFileReader) ContentType() string {
+	return ContentTypeFromFileName(self.activeFile.fileName)
+}
+
+func (self *ActiveFileReader) Size() (int, error) {
+	self.activeFile.readLocker.Lock()
+
+	defer self.activeFile.readLocker.Unlock()
+
+	// wait until currentUpload is available
+	for self.activeFile.currentUpload == nil {
+		self.activeFile.dataAvailableCond.Wait()
+
+		if self.activeFile.aborted {
+			return -1, ErrUploadAborted
+		}
+	}
+
+	return self.activeFile.currentUpload.totalFileBytes, nil
+}
+
 func (self *ActiveFileReader) Read(p []byte) (int, error) {
 	self.activeFile.readLocker.Lock()
 
 	defer self.activeFile.readLocker.Unlock()
 
-	checkAborted := func() bool {
-		if self.activeFile.aborted {
-			self.Close()
-			return true
-		} else {
-			return false
-		}
-	}
-
-	if checkAborted() {
+	if self.activeFile.aborted {
 		return 0, ErrUploadAborted
 	}
 
@@ -227,13 +239,12 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 	for self.activeFile.currentUpload == nil {
 		self.activeFile.dataAvailableCond.Wait()
 
-		if checkAborted() {
+		if self.activeFile.aborted {
 			return 0, ErrUploadAborted
 		}
 	}
 
 	if self.file == nil {
-		// TODO: auto-create "files"
 		file, err := os.Open(FileNameToPath(self.activeFile.fileName))
 
 		if err != nil {
@@ -252,7 +263,7 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 	for self.bytesRead >= self.activeFile.currentUpload.bytesWritten {
 		self.activeFile.dataAvailableCond.Wait()
 
-		if checkAborted() {
+		if self.activeFile.aborted {
 			return 0, ErrUploadAborted
 		}
 	}

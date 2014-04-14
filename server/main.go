@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -80,33 +79,37 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 
 				fileName := path[0]
 
-				reader := getReaderForFileName(fileName, activeFileManager, fileStore)
+				fileReader := getReaderForFileName(fileName, activeFileManager, fileStore)
 
-				if reader == nil {
+				if fileReader == nil {
 					http.NotFound(res, req)
 					return
 				}
 
-				defer reader.Close()
+				defer fileReader.Close()
 
-				// stream the reader to the response
+				// stream the fileReader to the response
 
 				// TODO: content type
-				res.Header().Add("Content-Type", "image/jpeg")
+				res.Header().Add("Content-Type", fileReader.ContentType())
 
-				// TODO: length of file
+				fileSize, err := fileReader.Size()
+
+				if err != nil {
+					http.NotFound(res, req) // only happens if the upload was aborted
+					return
+				}
+
+				res.Header().Add("Content-Length", strconv.Itoa(fileSize))
 
 				buf := make([]byte, 1024) // TODO: real buffer size
 
 				for {
-					bytesRead, err := reader.Read(buf)
+					bytesRead, err := fileReader.Read(buf)
 
 					if bytesRead > 0 {
 						fmt.Println("Writing", bytesRead, "bytes to response")
 						res.Write(buf[:bytesRead])
-						//fl, _ := res.(http.Flusher)
-
-						//fl.Flush()
 					}
 
 					if err != nil {
@@ -180,20 +183,14 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 	}
 }
 
-func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager, fileStore FileStore) io.ReadCloser {
+func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager, fileStore FileStore) FileReader {
 	activeFileReader := activeFileManager.GetReaderForFileName(fileName)
 
 	if activeFileReader != nil {
 		return activeFileReader
 	}
 
-	file := fileStore.GetFile(fileName)
-
-	if file != nil {
-		return file
-	}
-
-	return nil
+	return fileStore.GetFileReader(fileName)
 }
 
 func urlPathToArray(path string) []string {
@@ -212,4 +209,23 @@ func urlPathToArray(path string) []string {
 	}
 
 	return splitPath[startIdx : endIdx+1]
+}
+
+func ContentTypeFromFileName(fileName string) string {
+	var extension string
+
+	dotIndex := strings.LastIndex(fileName, ".")
+
+	if dotIndex != -1 {
+		extension = strings.ToLower(fileName[dotIndex+1:])
+	}
+
+	switch extension {
+	case "png":
+		return "image/png"
+	case "jpg", "jpeg":
+		return "image/jpeg"
+	default:
+		return "application/octet-stream"
+	}
 }
