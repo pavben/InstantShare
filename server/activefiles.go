@@ -36,7 +36,7 @@ type ActiveFile struct {
 	currentUpload     *currentUpload
 	readLocker        sync.Locker
 	dataAvailableCond *sync.Cond
-	timeout           *timeout.Timeout
+	timeout           timeout.Timeout
 	userKey           string
 	state             activeFileState
 
@@ -88,7 +88,7 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 
 			activeFile.dataAvailableCond = sync.NewCond(activeFile.readLocker)
 
-			activeFile.timeout = timeout.NewTimeout(10*time.Second, func() {
+			activeFile.timeout = timeout.New(10*time.Second, func() {
 				func() {
 					activeFile.Lock()
 

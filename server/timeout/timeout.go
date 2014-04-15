@@ -2,16 +2,23 @@ package timeout
 
 import "time"
 
+type Timeout interface {
+	Reset() bool
+	Cancel() bool
+}
+
 type responseChanType chan bool
 type controlChanType chan responseChanType
 
-type Timeout struct {
+type timeout struct {
 	resetChan  controlChanType
 	cancelChan controlChanType
 }
 
-func NewTimeout(duration time.Duration, timeoutFunc func()) *Timeout {
-	timeout := &Timeout{
+// New creates a Timeout, which calls timeoutFunc after duration.
+// It can be reset or cancelled.
+func New(duration time.Duration, timeoutFunc func()) Timeout {
+	timeout := &timeout{
 		resetChan:  make(controlChanType),
 		cancelChan: make(controlChanType),
 	}
@@ -44,7 +51,7 @@ func NewTimeout(duration time.Duration, timeoutFunc func()) *Timeout {
 	return timeout
 }
 
-func (self *Timeout) Reset() bool {
+func (self *timeout) Reset() bool {
 	responseChan := make(responseChanType)
 
 	self.resetChan <- responseChan
@@ -52,7 +59,7 @@ func (self *Timeout) Reset() bool {
 	return <-responseChan
 }
 
-func (self *Timeout) Cancel() bool {
+func (self *timeout) Cancel() bool {
 	responseChan := make(responseChanType)
 
 	self.cancelChan <- responseChan
