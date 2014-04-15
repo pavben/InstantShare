@@ -2,57 +2,60 @@ package timeout
 
 import "time"
 
-type TimeoutMessage int
-
-const (
-	TimeoutResetMessage TimeoutMessage = iota
-	TimeoutTriggerMessage
-	TimeoutCancelMessage
-)
+type responseChanType chan bool
+type controlChanType chan responseChanType
 
 type Timeout struct {
-	timeoutChan chan bool
+	resetChan  controlChanType
+	cancelChan controlChanType
 }
 
 func NewTimeout(duration time.Duration, timeoutFunc func()) *Timeout {
-	timeout := &Timeout{}
-
-	timeout.resetTimeoutChan()
+	timeout := &Timeout{
+		resetChan:  make(controlChanType),
+		cancelChan: make(controlChanType),
+	}
 
 	go func() {
 		for {
-			switch <-timeout.timeoutChan {
-			case TimeoutResetMessage:
-				// make a new chan so that the old TimeoutTriggerMessage won't reach us
-				timeout.resetTimeoutChan()
-
-				go func() {
-					time.Sleep(self.duration)
-
-					timeout.timeoutChan <- TimeoutTriggerMessage
-				}()
-			case TimeoutTriggerMessage:
+			select {
+			case <-time.After(duration):
 				timeoutFunc()
-				break
-			case TimeoutCancelMessage:
-				break
+				return
+			case responseChan := <-timeout.resetChan:
+				responseChan <- true
+			case responseChan := <-timeout.cancelChan:
+				responseChan <- true
+				return
+			}
+		}
+
+		// now that the timeout has been triggered or cancelled, Reset and Cancel will be returning false
+		for {
+			select {
+			case responseChan := <-timeout.resetChan:
+				responseChan <- false
+			case responseChan := <-timeout.cancelChan:
+				responseChan <- false
 			}
 		}
 	}()
 
-	timeout.Reset()
-
 	return timeout
 }
 
-func (self *Timeout) resetTimeoutChan() {
-	self.timeoutChan = make(chan TimeoutMessage, 1)
+func (self *Timeout) Reset() bool {
+	responseChan := make(responseChanType)
+
+	self.resetChan <- responseChan
+
+	return <-responseChan
 }
 
-func (self *Timeout) Reset() {
-	self.timeoutChan <- TimeoutResetMessage
-}
+func (self *Timeout) Cancel() bool {
+	responseChan := make(responseChanType)
 
-func (self *Timeout) Cancel() {
-	self.timeoutChan <- TimeoutCancelMessage
+	self.cancelChan <- responseChan
+
+	return <-responseChan
 }

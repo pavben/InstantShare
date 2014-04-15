@@ -1,14 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/shurcooL/go-goon"
 )
 
 const maxFileSize = 200 * 1024 * 1024
@@ -63,7 +60,6 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 
 				// stream the fileReader to the response
 
-				// TODO: content type
 				res.Header().Add("Content-Type", fileReader.ContentType())
 
 				fileSize, err := fileReader.Size()
@@ -81,7 +77,6 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 					bytesRead, err := fileReader.Read(buf)
 
 					if bytesRead > 0 {
-						fmt.Println("Writing", bytesRead, "bytes to response")
 						res.Write(buf[:bytesRead])
 					}
 
@@ -99,7 +94,7 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
-			goon.Dump(req)
+			//goon.Dump(req)
 
 			query, err := url.ParseQuery(req.URL.RawQuery)
 
