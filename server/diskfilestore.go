@@ -16,15 +16,15 @@ type DiskFileStore struct {
 	basePath string
 }
 
-func NewDiskFileStore(basePath string) (FileStore, error) {
+func NewDiskFileStore(fileStorePath string) (FileStore, error) {
 	// It it's not an existing directory, abort and ask the user to create it or specify existing directory.
-	s, err := os.Stat(basePath)
+	s, err := os.Stat(fileStorePath)
 	isDirectory := err == nil && s.IsDir()
 	if !isDirectory {
 		return nil, ErrDiskFileStoreDirDoesNotExist
 	}
 
-	fileStore := &DiskFileStore{basePath: basePath}
+	fileStore := &DiskFileStore{basePath: fileStorePath}
 
 	return fileStore, nil
 }
