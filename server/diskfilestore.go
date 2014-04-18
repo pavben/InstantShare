@@ -4,37 +4,33 @@ import (
 	"errors"
 	"math"
 	"os"
+	"path/filepath"
 )
 
 var (
-	ErrFileTooBig = errors.New("File too big")
+	ErrFileTooBig                   = errors.New("File too big")
+	ErrDiskFileStoreDirDoesNotExist = errors.New("The specified path for disk file store is not an existing directory")
 )
 
-const basePath = "files/"
-
 type DiskFileStore struct {
+	basePath string
 }
 
-func NewDiskFileStore() (FileStore, error) {
-	fileStore := &DiskFileStore{}
-
-	_, err := os.Stat(basePath)
-
-	// if failed to stat, create the dir
-	if err != nil {
-		err = os.Mkdir(basePath, 0700)
+func NewDiskFileStore(fileStorePath string) (FileStore, error) {
+	// It it's not an existing directory, abort and ask the user to create it or specify existing directory.
+	s, err := os.Stat(fileStorePath)
+	isDirectory := err == nil && s.IsDir()
+	if !isDirectory {
+		return nil, ErrDiskFileStoreDirDoesNotExist
 	}
 
-	// if failed to stat and failed to create dir, fail
-	if err != nil {
-		return nil, err
-	}
+	fileStore := &DiskFileStore{basePath: fileStorePath}
 
 	return fileStore, nil
 }
 
 func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
-	file, err := os.Open(fileNameToPath(fileName))
+	file, err := os.Open(self.fileNameToPath(fileName))
 
 	if err != nil {
 		return nil, err
@@ -49,7 +45,7 @@ func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
 }
 
 func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
-	file, err := os.Create(fileNameToPath(fileName))
+	file, err := os.Create(self.fileNameToPath(fileName))
 
 	if err != nil {
 		return nil, err
@@ -63,7 +59,7 @@ func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
 }
 
 func (self *DiskFileStore) RemoveFile(fileName string) error {
-	return os.Remove(fileNameToPath(fileName))
+	return os.Remove(self.fileNameToPath(fileName))
 }
 
 type DiskFileReader struct {
@@ -132,6 +128,6 @@ func (self *DiskFileWriter) Close() (err error) {
 	return
 }
 
-func fileNameToPath(fileName string) string {
-	return basePath + fileName
+func (self *DiskFileStore) fileNameToPath(fileName string) string {
+	return filepath.Join(self.basePath, fileName)
 }

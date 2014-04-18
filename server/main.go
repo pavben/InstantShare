@@ -1,17 +1,31 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
 
 const maxFileSize = 200 * 1024 * 1024
 
+var (
+	fileStorePathFlag = flag.String("file-store-path", "", "Path to dir for uploaded files; you must provide an existing dir.")
+)
+
 func main() {
-	fileStore, err := NewDiskFileStore()
+	flag.Parse()
+
+	// Check for mandatory flag value.
+	if *fileStorePathFlag == "" {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	fileStore, err := NewDiskFileStore(*fileStorePathFlag)
 
 	if err != nil {
 		log.Println(err)
