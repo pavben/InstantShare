@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"os"
+	"path/filepath"
 )
 
 var (
@@ -128,5 +129,5 @@ func (self *DiskFileWriter) Close() (err error) {
 }
 
 func (self *DiskFileStore) fileNameToPath(fileName string) string {
-	return self.basePath + fileName
+	return filepath.Join(self.basePath, fileName)
 }
