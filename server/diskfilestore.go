@@ -4,13 +4,14 @@ import (
 	"errors"
 	"math"
 	"os"
+	"path/filepath"
 )
 
 var (
 	ErrFileTooBig = errors.New("File too big")
 )
 
-const basePath = "files/"
+const basePath = "files"
 
 type DiskFileStore struct {
 }
@@ -34,7 +35,7 @@ func NewDiskFileStore() (FileStore, error) {
 }
 
 func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
-	file, err := os.Open(fileNameToPath(fileName))
+	file, err := os.Open(self.fileNameToPath(fileName))
 
 	if err != nil {
 		return nil, err
@@ -49,7 +50,7 @@ func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
 }
 
 func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
-	file, err := os.Create(fileNameToPath(fileName))
+	file, err := os.Create(self.fileNameToPath(fileName))
 
 	if err != nil {
 		return nil, err
@@ -63,7 +64,11 @@ func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
 }
 
 func (self *DiskFileStore) RemoveFile(fileName string) error {
-	return os.Remove(fileNameToPath(fileName))
+	return os.Remove(self.fileNameToPath(fileName))
+}
+
+func (self *DiskFileStore) fileNameToPath(fileName string) string {
+	return filepath.Join(basePath, fileName)
 }
 
 type DiskFileReader struct {
@@ -130,8 +135,4 @@ func (self *DiskFileWriter) Close() (err error) {
 	}
 
 	return
-}
-
-func fileNameToPath(fileName string) string {
-	return basePath + fileName
 }
