@@ -5,11 +5,8 @@ import (
 	"io/ioutil"
 	"runtime"
 
-	"github.com/overlordtm/trayhost"
+	"github.com/shurcooL/trayhost"
 )
-
-// TODO: Factor into trayhost.
-func trayhost_NewSeparatorMenuItem() trayhost.MenuItem { return trayhost.MenuItem{Title: ""} }
 
 func main() {
 	runtime.LockOSThread()
@@ -24,7 +21,7 @@ func main() {
 				fmt.Println("TODO: upload image in background")
 			},
 		},
-		trayhost_NewSeparatorMenuItem(),
+		trayhost.SeparatorMenuItem(),
 		trayhost.MenuItem{
 			Title:   "Quit",
 			Handler: trayhost.Exit,
