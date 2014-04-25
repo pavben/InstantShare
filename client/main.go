@@ -11,7 +11,7 @@ import (
 func main() {
 	runtime.LockOSThread()
 
-	menuItems := trayhost.MenuItems{
+	menuItems := []trayhost.MenuItem{
 		trayhost.MenuItem{
 			Title: "Instant Share",
 			Handler: func() {
