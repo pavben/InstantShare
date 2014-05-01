@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/shurcooL/trayhost"
 )
+
+// TODO: Load from config. Have ability to set config.
+var hostFlag = flag.String("host", "", "Target server host.")
 
 func instantShareHandler() {
 	fmt.Println("grab content, content-type of clipboard")
@@ -22,7 +26,7 @@ func instantShareHandler() {
 
 	fmt.Println("request URL")
 
-	resp, err := http.Get("http://localhost:27080/api/getfilename?ext=png")
+	resp, err := http.Get(*hostFlag + "/api/getfilename?ext=png")
 	if err != nil {
 		log.Println(err)
 		return
@@ -36,7 +40,7 @@ func instantShareHandler() {
 
 	fmt.Println("display/put URL in clipboard")
 
-	url := "http://localhost:27080/" + string(filename)
+	url := *hostFlag + "/" + string(filename)
 	trayhost.SetClipboardString(url)
 	// TODO: Notification? Or not?
 
@@ -48,17 +52,19 @@ func instantShareHandler() {
 			log.Println(err)
 			return
 		}
-		req.Header.Set("Content-Type", "image/png")
+		req.Header.Set("Content-Type", "application/octet-stream")
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 		_ = resp.Body.Close()
+		fmt.Println("done")
 	}()
 }
 
 func main() {
+	flag.Parse()
 	runtime.LockOSThread()
 
 	menuItems := []trayhost.MenuItem{
