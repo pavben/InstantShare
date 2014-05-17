@@ -106,7 +106,8 @@ func main() {
 	}
 
 	// TODO: Create a real icon and bake it into the binary.
-	iconData, err := ioutil.ReadFile("./icon.png")
+	// TODO: Optionally, if non-Retina pixel perfection is required, generate or load 1x image and supply that as a second representation.
+	iconData, err := ioutil.ReadFile("./icon@2x.png")
 	if err != nil {
 		panic(err)
 	}
