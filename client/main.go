@@ -14,6 +14,7 @@ import (
 
 // TODO: Load from config. Have ability to set config.
 var hostFlag = flag.String("host", "", "Target server host.")
+var debugFlag = flag.Bool("debug", false, "Adds menu items for debugging purposes.")
 
 func instantShareHandler() {
 	fmt.Println("grab content, content-type of clipboard")
@@ -72,31 +73,36 @@ func main() {
 			Title:   "Instant Share",
 			Handler: instantShareHandler,
 		},
-		trayhost.MenuItem{
-			Title: "Debug: Get Clipboard String",
-			Handler: func() {
-				str, err := trayhost.GetClipboardString()
-				fmt.Printf("GetClipboardString(): %q %v\n", str, err)
-			},
-		},
-		trayhost.MenuItem{
-			Title: "Debug: Get Clipboard Image",
-			Handler: func() {
-				img, err := trayhost.GetClipboardImage()
-				fmt.Printf("GetClipboardImage(): len(%v) %v\n", len(img), err)
-			},
-		},
-		trayhost.MenuItem{
-			Title: "Debug: Set Clipboard",
-			Handler: func() {
-				trayhost.SetClipboardString("http://www.example.org/image.png")
-			},
-		},
 		trayhost.SeparatorMenuItem(),
 		trayhost.MenuItem{
 			Title:   "Quit",
 			Handler: trayhost.Exit,
 		},
+	}
+	if *debugFlag {
+		menuItems = append(menuItems,
+			trayhost.SeparatorMenuItem(),
+			trayhost.MenuItem{
+				Title: "Debug: Get Clipboard String",
+				Handler: func() {
+					str, err := trayhost.GetClipboardString()
+					fmt.Printf("GetClipboardString(): %q %v\n", str, err)
+				},
+			},
+			trayhost.MenuItem{
+				Title: "Debug: Get Clipboard Image",
+				Handler: func() {
+					img, err := trayhost.GetClipboardImage()
+					fmt.Printf("GetClipboardImage(): len(%v) %v\n", len(img), err)
+				},
+			},
+			trayhost.MenuItem{
+				Title: "Debug: Set Clipboard",
+				Handler: func() {
+					trayhost.SetClipboardString("http://www.example.org/image.png")
+				},
+			},
+		)
 	}
 
 	// TODO: Create a real icon and bake it into the binary.
