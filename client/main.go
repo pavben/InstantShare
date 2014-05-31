@@ -9,6 +9,11 @@ import (
 	"net/http"
 	"runtime"
 
+	"image"
+	"image/png"
+
+	_ "code.google.com/p/go.image/tiff"
+
 	"github.com/shurcooL/trayhost"
 )
 
@@ -22,6 +27,28 @@ func instantShareHandler() {
 	img, err := trayhost.GetClipboardImage()
 	if err != nil {
 		log.Println(err)
+		return
+	}
+
+	// Convert image to desired destination format (currently, always PNG).
+	var imageData []byte
+	switch img.Kind {
+	case trayhost.ImageKindPng:
+		imageData = img.Bytes
+	case trayhost.ImageKindTiff:
+		m, _, err := image.Decode(bytes.NewReader(img.Bytes))
+		if err != nil {
+			log.Panicln("image.Decode:", err)
+		}
+
+		var buf bytes.Buffer
+		err = png.Encode(&buf, m)
+		if err != nil {
+			log.Panicln("png.Encode:", err)
+		}
+		imageData = buf.Bytes()
+	default:
+		log.Println("unsupported source image kind:", img.Kind)
 		return
 	}
 
@@ -45,10 +72,10 @@ func instantShareHandler() {
 	trayhost.SetClipboardString(url)
 	// TODO: Notification? Or not?
 
-	fmt.Println("upload image in background of size", len(img))
+	fmt.Println("upload image in background of size", len(imageData))
 
 	go func() {
-		req, err := http.NewRequest("PUT", url, bytes.NewReader(img))
+		req, err := http.NewRequest("PUT", url, bytes.NewReader(imageData))
 		if err != nil {
 			log.Println(err)
 			return
@@ -93,7 +120,7 @@ func main() {
 				Title: "Debug: Get Clipboard Image",
 				Handler: func() {
 					img, err := trayhost.GetClipboardImage()
-					fmt.Printf("GetClipboardImage(): len(%v) %v\n", len(img), err)
+					fmt.Printf("GetClipboardImage(): %v len(%v) %v\n", img.Kind, len(img.Bytes), err)
 				},
 			},
 			trayhost.MenuItem{
