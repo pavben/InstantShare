@@ -132,6 +132,12 @@ func main() {
 					trayhost.SetClipboardString("http://www.example.org/image.png")
 				},
 			},
+			trayhost.MenuItem{
+				Title: "Debug: Notification",
+				Handler: func() {
+					trayhost.DisplayNotification()
+				},
+			},
 		)
 	}
 
