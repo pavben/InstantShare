@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"runtime"
+	"time"
 
 	"image"
 	"image/png"
@@ -54,14 +55,16 @@ func instantShareHandler() {
 
 	fmt.Println("request URL")
 
-	resp, err := http.Get(*hostFlag + "/api/getfilename?ext=png")
+	resp, err := (&http.Client{Timeout: 1 * time.Second}).Get(*hostFlag + "/api/getfilename?ext=png")
 	if err != nil {
+		// TODO: Failure notification?
 		log.Println(err)
 		return
 	}
 	defer resp.Body.Close()
 	filename, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		// TODO: Failure notification?
 		log.Println(err)
 		return
 	}
@@ -70,7 +73,7 @@ func instantShareHandler() {
 
 	url := *hostFlag + "/" + string(filename)
 	trayhost.SetClipboardString(url)
-	// TODO: Notification? Or not?
+	// TODO: Success notification? Or not?
 
 	fmt.Println("upload image in background of size", len(imageData))
 
