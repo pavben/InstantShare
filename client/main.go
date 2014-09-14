@@ -57,14 +57,14 @@ func instantShareHandler() {
 
 	resp, err := (&http.Client{Timeout: 1 * time.Second}).Get(*hostFlag + "/api/getfilename?ext=png")
 	if err != nil {
-		// TODO: Failure notification?
+		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
 		log.Println(err)
 		return
 	}
 	defer resp.Body.Close()
 	filename, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		// TODO: Failure notification?
+		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
 		log.Println(err)
 		return
 	}
@@ -73,7 +73,7 @@ func instantShareHandler() {
 
 	url := *hostFlag + "/" + string(filename)
 	trayhost.SetClipboardString(url)
-	// TODO: Success notification? Or not?
+	trayhost.Notification{Title: "Upload Complete", Body: url, Timeout: 3 * time.Second}.Display()
 
 	fmt.Println("upload image in background of size", len(imageData))
 
@@ -135,7 +135,8 @@ func main() {
 			trayhost.MenuItem{
 				Title: "Debug: Notification",
 				Handler: func() {
-					trayhost.DisplayNotification()
+					trayhost.Notification{Title: "Upload Complete", Body: "http://virtivia.com:27080/1cerx4db9oeih.png", Timeout: 3 * time.Second}.Display()
+					//trayhost.Notification{Title: "Upload Failed", Body: "error description goes here"}.Display()
 				},
 			},
 		)
