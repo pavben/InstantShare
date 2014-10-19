@@ -22,6 +22,17 @@ import (
 var hostFlag = flag.String("host", "", "Target server host.")
 var debugFlag = flag.Bool("debug", false, "Adds menu items for debugging purposes.")
 
+func instantShareEnabled() bool {
+	fmt.Println("check if clipboard contains something usable")
+
+	_, err := trayhost.GetClipboardImage()
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
 func instantShareHandler() {
 	fmt.Println("grab content, content-type of clipboard")
 
@@ -101,6 +112,7 @@ func main() {
 	menuItems := []trayhost.MenuItem{
 		trayhost.MenuItem{
 			Title:   "Instant Share",
+			Enabled: instantShareEnabled,
 			Handler: instantShareHandler,
 		},
 		trayhost.SeparatorMenuItem(),
@@ -129,13 +141,13 @@ func main() {
 			trayhost.MenuItem{
 				Title: "Debug: Set Clipboard",
 				Handler: func() {
-					trayhost.SetClipboardString("http://www.example.org/image.png")
+					trayhost.SetClipboardString("http://www.example.com/image.png")
 				},
 			},
 			trayhost.MenuItem{
 				Title: "Debug: Notification",
 				Handler: func() {
-					trayhost.Notification{Title: "Upload Complete", Body: "http://virtivia.com:27080/1cerx4db9oeih.png", Timeout: 3 * time.Second}.Display()
+					trayhost.Notification{Title: "Upload Complete", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second}.Display()
 					//trayhost.Notification{Title: "Upload Failed", Body: "error description goes here"}.Display()
 				},
 			},
@@ -151,7 +163,7 @@ func main() {
 
 	fmt.Println("Starting.")
 
-	trayhost.Initialize("InstantShare", iconData, menuItems)
+	trayhost.Initialize("Instant Share", iconData, menuItems)
 
 	trayhost.EnterLoop()
 
