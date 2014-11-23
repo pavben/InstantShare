@@ -88,6 +88,7 @@ func instantShareHandler() {
 	trayhost.Notification{
 		Title:   "Upload Complete",
 		Body:    url,
+		Image:   img,
 		Timeout: 3 * time.Second,
 		Handler: func() {
 			// On click, open the displayed URL.
@@ -159,8 +160,12 @@ func main() {
 					handler := func() {
 						u4.Open("http://www.example.com/image.png")
 					}
-					trayhost.Notification{Title: "Upload Complete", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second, Handler: handler}.Display()
+					notification := trayhost.Notification{Title: "Upload Complete", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second, Handler: handler}
 					//trayhost.Notification{Title: "Upload Failed", Body: "error description goes here"}.Display()
+					if img, err := trayhost.GetClipboardImage(); err == nil {
+						notification.Image = img
+					}
+					notification.Display()
 				},
 			},
 		)
