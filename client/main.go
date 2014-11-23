@@ -15,6 +15,7 @@ import (
 
 	_ "code.google.com/p/go.image/tiff"
 
+	"github.com/shurcooL/go/u/u4"
 	"github.com/shurcooL/trayhost"
 )
 
@@ -84,7 +85,15 @@ func instantShareHandler() {
 
 	url := *hostFlag + "/" + string(filename)
 	trayhost.SetClipboardString(url)
-	trayhost.Notification{Title: "Upload Complete", Body: url, Timeout: 3 * time.Second}.Display()
+	trayhost.Notification{
+		Title:   "Upload Complete",
+		Body:    url,
+		Timeout: 3 * time.Second,
+		Handler: func() {
+			// On click, open the displayed URL.
+			u4.Open(url)
+		},
+	}.Display()
 
 	fmt.Println("upload image in background of size", len(imageData))
 
@@ -147,7 +156,10 @@ func main() {
 			trayhost.MenuItem{
 				Title: "Debug: Notification",
 				Handler: func() {
-					trayhost.Notification{Title: "Upload Complete", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second}.Display()
+					handler := func() {
+						u4.Open("http://www.example.com/image.png")
+					}
+					trayhost.Notification{Title: "Upload Complete", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second, Handler: handler}.Display()
 					//trayhost.Notification{Title: "Upload Failed", Body: "error description goes here"}.Display()
 				},
 			},
