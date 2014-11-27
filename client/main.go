@@ -26,7 +26,7 @@ var debugFlag = flag.Bool("debug", false, "Adds menu items for debugging purpose
 var httpClient = &http.Client{Timeout: 3 * time.Second}
 
 func instantShareEnabled() bool {
-	fmt.Println("check if clipboard contains something usable")
+	//fmt.Println("check if clipboard contains something usable")
 
 	_, err := trayhost.GetClipboardImage()
 	if err != nil {
@@ -148,6 +148,13 @@ func main() {
 				Handler: func() {
 					img, err := trayhost.GetClipboardImage()
 					fmt.Printf("GetClipboardImage(): %v len(%v) %v\n", img.Kind, len(img.Bytes), err)
+				},
+			},
+			trayhost.MenuItem{
+				Title: "Debug: Get Clipboard Files",
+				Handler: func() {
+					filenames, err := trayhost.GetClipboardFiles()
+					fmt.Printf("GetClipboardFiles(): %v len(%v) %v\n", filenames, len(filenames), err)
 				},
 			},
 			trayhost.MenuItem{
