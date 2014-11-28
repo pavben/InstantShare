@@ -65,7 +65,6 @@ func NewActiveFileManager(fileStore FileStore) *ActiveFileManager {
 
 func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey string) string {
 	self.Lock()
-
 	defer self.Unlock()
 
 	for {

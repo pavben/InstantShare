@@ -1,21 +1,17 @@
 package main
 
-import "strings"
+import "path/filepath"
 
 func ContentTypeFromFileName(fileName string) string {
-	var extension string
-
-	dotIndex := strings.LastIndex(fileName, ".")
-
-	if dotIndex != -1 {
-		extension = strings.ToLower(fileName[dotIndex+1:])
-	}
-
-	switch extension {
-	case "png":
+	switch filepath.Ext(fileName) {
+	case ".png":
 		return "image/png"
-	case "jpg", "jpeg":
+	case ".jpg", ".jpeg":
 		return "image/jpeg"
+	case ".mov":
+		// TODO: Handle this correctly. "video/quicktime" is correct, but I'm temporarily using "video/mp4" for testing in Chrome.
+		//return "video/quicktime"
+		return "video/mp4"
 	default:
 		return "application/octet-stream"
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -94,28 +93,13 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
-			//goon.Dump(req)
-
-			query, err := url.ParseQuery(req.URL.RawQuery)
-
-			if err != nil {
-				http.Error(res, "Bad Request: Invalid query parameters", http.StatusBadRequest)
-				return
-			}
-
-			fileExtension, fileExtensionProvided := query["ext"]
-
-			if !fileExtensionProvided {
+			fileExtension := req.URL.Query().Get("ext")
+			if fileExtension == "" {
 				http.Error(res, "Bad Request: Missing file extension parameter", http.StatusBadRequest)
 				return
 			}
 
-			// CHECK: Can len(fileExtension) == 0?
-			if len(fileExtension) < 1 {
-				return
-			}
-
-			newFilename := activeFileManager.PrepareUpload(fileExtension[0], "USERKEYTODO")
+			newFilename := activeFileManager.PrepareUpload(fileExtension, "USERKEYTODO")
 
 			log.Println("/api/getfilename returning", newFilename)
 
