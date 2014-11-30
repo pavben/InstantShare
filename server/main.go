@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -33,6 +34,17 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServeTLS: ", err)
 	}
+}
+
+type readSeeker struct {
+	FileReader
+	fileSize int
+}
+
+func (rs readSeeker) Seek(offset int64, whence int) (int64, error) {
+	// HACK: This only works for small files; need to properly implement Seek to handle general case.
+	fmt.Println("readSeeker.Seek:", offset, whence)
+	return int64(rs.fileSize), nil
 }
 
 func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) http.Handler {
@@ -68,24 +80,9 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 					return
 				}
 
-				res.Header().Add("Content-Length", strconv.Itoa(fileSize))
+				content := readSeeker{FileReader: fileReader, fileSize: fileSize}
 
-				buf := make([]byte, 1024) // TODO: real buffer size
-
-				for {
-					bytesRead, err := fileReader.Read(buf)
-
-					if bytesRead > 0 {
-						res.Write(buf[:bytesRead])
-					}
-
-					if err != nil {
-						// whether the error is EOF or something else, stop streaming
-
-						// TODO: how I end the request?
-						return
-					}
-				}
+				http.ServeContent(res, req, "", fileReader.ModTime(), content)
 			} else if method == "PUT" {
 				// uploading a file
 				handlePutFile(res, req, path[0], activeFileManager)

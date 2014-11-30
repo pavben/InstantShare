@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"image"
+	"image/png"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,13 +13,9 @@ import (
 	"runtime"
 	"time"
 
-	"image"
-	"image/png"
-
-	_ "golang.org/x/image/tiff"
-
 	"github.com/shurcooL/go/u/u4"
 	"github.com/shurcooL/trayhost"
+	_ "golang.org/x/image/tiff"
 )
 
 // TODO: Load from config. Have ability to set config.

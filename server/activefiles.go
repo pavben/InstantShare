@@ -184,7 +184,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	buf := make([]byte, 250000)
 
 	for {
-		time.Sleep(2 * time.Second) // HACK
+		//time.Sleep(2 * time.Second) // HACK
 		bytesRead, err := fileData.Read(buf)
 
 		if bytesRead > 0 {
@@ -282,6 +282,10 @@ func (self *ActiveFileReader) ContentType() string {
 
 func (self *ActiveFileReader) Size() (int, error) {
 	return self.activeFile.currentUpload.totalFileBytes, nil
+}
+
+func (self *ActiveFileReader) ModTime() time.Time {
+	return time.Time{}
 }
 
 func (self *ActiveFileReader) Read(p []byte) (int, error) {

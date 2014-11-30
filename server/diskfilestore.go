@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -13,8 +14,7 @@ var (
 
 const basePath = "files"
 
-type DiskFileStore struct {
-}
+type DiskFileStore struct{}
 
 func NewDiskFileStore() (FileStore, error) {
 	fileStore := &DiskFileStore{}
@@ -94,6 +94,15 @@ func (self *DiskFileReader) Size() (int, error) {
 	}
 
 	return int(fileSizeInt64), nil
+}
+
+func (self *DiskFileReader) ModTime() time.Time {
+	fi, err := self.file.Stat()
+	if err != nil {
+		return time.Time{}
+	}
+
+	return fi.ModTime()
 }
 
 func (self *DiskFileReader) Read(p []byte) (int, error) {
