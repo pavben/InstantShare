@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -37,17 +35,6 @@ func main() {
 	}
 }
 
-type readSeeker struct {
-	FileReader
-	fileSize int
-}
-
-func (rs readSeeker) Seek(offset int64, whence int) (int64, error) {
-	// HACK: This only works for small files; need to properly implement Seek to handle general case.
-	fmt.Println("readSeeker.Seek:", offset, whence)
-	return int64(rs.fileSize), nil
-}
-
 func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		method := req.Method
@@ -71,23 +58,8 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 				defer fileReader.Close()
 
 				// stream the fileReader to the response
-
 				res.Header().Set("Content-Type", fileReader.ContentType())
-
-				fileSize, err := fileReader.Size()
-
-				if err != nil {
-					http.NotFound(res, req) // only happens if the upload was aborted
-					return
-				}
-
-				res.Header().Set("Content-Length", strconv.Itoa(fileSize))
-				io.Copy(res, fileReader)
-				return
-
-				// TODO: Make this work correctly instead of a dumb io.Copy.
-				//content := readSeeker{FileReader: fileReader, fileSize: fileSize}
-				//http.ServeContent(res, req, "", fileReader.ModTime(), content)
+				http.ServeContent(res, req, "", fileReader.ModTime(), fileReader)
 			} else if method == "PUT" {
 				// uploading a file
 				handlePutFile(res, req, path[0], activeFileManager)

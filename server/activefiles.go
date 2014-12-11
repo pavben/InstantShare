@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -41,14 +43,6 @@ type ActiveFile struct {
 	state             activeFileState
 
 	sync.RWMutex
-}
-
-type ActiveFileReader struct {
-	activeFile *ActiveFile
-	fileReader FileReader
-	bytesRead  int
-
-	sync.Mutex
 }
 
 type currentUpload struct {
@@ -184,7 +178,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	buf := make([]byte, 250000)
 
 	for {
-		//time.Sleep(2 * time.Second) // HACK
+		time.Sleep(2 * time.Second) // HACK
 		bytesRead, err := fileData.Read(buf)
 
 		if bytesRead > 0 {
@@ -276,6 +270,15 @@ func (self *ActiveFile) GetReader(fileStore FileStore) FileReader {
 	}
 }
 
+type ActiveFileReader struct {
+	activeFile *ActiveFile
+	fileReader FileReader
+	bytesRead  int
+	seekPos    int64
+
+	sync.Mutex
+}
+
 func (self *ActiveFileReader) ContentType() string {
 	return ContentTypeFromFileName(self.activeFile.fileName)
 }
@@ -288,10 +291,31 @@ func (self *ActiveFileReader) ModTime() time.Time {
 	return time.Time{}
 }
 
-func (self *ActiveFileReader) Read(p []byte) (int, error) {
+func (self *ActiveFileReader) Seek(offset int64, whence int) (int64, error) {
 	self.activeFile.readLocker.Lock()
-
 	defer self.activeFile.readLocker.Unlock()
+
+	fmt.Println("Seek:", offset, whence)
+
+	switch whence {
+	case os.SEEK_SET:
+		self.seekPos = offset
+	case os.SEEK_CUR:
+		self.seekPos += offset
+	case os.SEEK_END:
+		self.seekPos = int64(self.activeFile.currentUpload.totalFileBytes) - offset
+	}
+	return self.seekPos, nil
+}
+
+func (self *ActiveFileReader) Read(p []byte) (n int, err error) {
+	self.activeFile.readLocker.Lock()
+	defer self.activeFile.readLocker.Unlock()
+
+	fmt.Println("Read:", len(p))
+	defer func() {
+		fmt.Println("Read (n, err):", n, err)
+	}()
 
 	if self.activeFile.state == activeFileStateAborted {
 		return 0, ErrUploadAborted
@@ -311,7 +335,7 @@ func (self *ActiveFileReader) Read(p []byte) (int, error) {
 		}
 	}
 
-	n, err := self.fileReader.Read(p)
+	n, err = self.fileReader.Read(p)
 
 	self.bytesRead += n
 
