@@ -82,11 +82,8 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 			activeFile.dataAvailableCond = sync.NewCond(activeFile.readLocker)
 
 			activeFile.timeout = timeout.New(10*time.Second, func() {
-				func() {
-					activeFile.Lock()
-
-					defer activeFile.Unlock()
-
+				activeFile.Lock()
+				{
 					if activeFile.currentUpload != nil && activeFile.currentUpload.bytesWritten == activeFile.currentUpload.totalFileBytes {
 						activeFile.state = activeFileStateFinished
 					} else {
@@ -94,15 +91,12 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 					}
 
 					activeFile.dataAvailableCond.Broadcast()
-				}()
+				}
+				activeFile.Unlock()
 
-				func() {
-					self.Lock()
-
-					defer self.Unlock()
-
-					delete(self.activeFiles, fileName)
-				}()
+				self.Lock()
+				delete(self.activeFiles, fileName)
+				self.Unlock()
 			})
 
 			self.activeFiles[fileName] = activeFile
@@ -161,7 +155,12 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 
 		defer activeFile.Unlock()
 
-		activeFile.state = activeFileStateAborted
+		activeFile.timeout.Cancel()
+		if err == nil {
+			activeFile.state = activeFileStateFinished
+		} else {
+			activeFile.state = activeFileStateAborted
+		}
 	}()
 
 	// now that the file has been created, indicate that by setting bytesWritten to 0
@@ -175,10 +174,12 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 
 	activeFile.dataAvailableCond.Broadcast()
 
-	buf := make([]byte, 250000)
+	//buf := make([]byte, 250000)
+	buf := make([]byte, 25000)
 
 	for {
-		time.Sleep(2 * time.Second) // HACK
+		//time.Sleep(2 * time.Second) // HACK
+		time.Sleep(3 * time.Millisecond) // HACK
 		bytesRead, err := fileData.Read(buf)
 
 		if bytesRead > 0 {
@@ -266,15 +267,14 @@ func (self *ActiveFile) GetReader(fileStore FileStore) FileReader {
 	return &ActiveFileReader{
 		activeFile: self,
 		fileReader: fileReader,
-		bytesRead:  0,
 	}
 }
 
 type ActiveFileReader struct {
 	activeFile *ActiveFile
 	fileReader FileReader
-	bytesRead  int
-	seekPos    int64
+	//bytesRead  int
+	seekPos int64
 
 	sync.Mutex
 }
@@ -305,6 +305,15 @@ func (self *ActiveFileReader) Seek(offset int64, whence int) (int64, error) {
 	case os.SEEK_END:
 		self.seekPos = int64(self.activeFile.currentUpload.totalFileBytes) - offset
 	}
+
+	_, err := self.fileReader.Seek(offset, whence)
+	if err != nil {
+		panic(err)
+		return -1, err
+	}
+
+	// TODO: Return errors when needed.
+	fmt.Println("Seek return:", self.seekPos)
 	return self.seekPos, nil
 }
 
@@ -312,7 +321,7 @@ func (self *ActiveFileReader) Read(p []byte) (n int, err error) {
 	self.activeFile.readLocker.Lock()
 	defer self.activeFile.readLocker.Unlock()
 
-	fmt.Println("Read:", len(p))
+	fmt.Println("Read:", len(p), "seekPos:", self.seekPos)
 	defer func() {
 		fmt.Println("Read (n, err):", n, err)
 	}()
@@ -322,12 +331,13 @@ func (self *ActiveFileReader) Read(p []byte) (n int, err error) {
 	}
 
 	// if done reading
-	if self.bytesRead == self.activeFile.currentUpload.totalFileBytes {
+	// TODO: Maybe error if > totalFileBytes.
+	if self.seekPos >= int64(self.activeFile.currentUpload.totalFileBytes) {
 		return 0, io.EOF
 	}
 
 	// wait until there is more data to read
-	for self.bytesRead == self.activeFile.currentUpload.bytesWritten {
+	for self.seekPos >= int64(self.activeFile.currentUpload.bytesWritten) {
 		self.activeFile.dataAvailableCond.Wait()
 
 		if self.activeFile.state == activeFileStateAborted {
@@ -337,7 +347,7 @@ func (self *ActiveFileReader) Read(p []byte) (n int, err error) {
 
 	n, err = self.fileReader.Read(p)
 
-	self.bytesRead += n
+	self.seekPos += int64(n)
 
 	// clear the error if it's EOF since it won't be EOF when more data is written
 	if err == io.EOF {

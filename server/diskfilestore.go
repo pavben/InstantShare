@@ -106,6 +106,9 @@ func (self *DiskFileReader) ModTime() time.Time {
 }
 
 func (self *DiskFileReader) Read(p []byte) (int, error) {
+	/*n, err := self.file.Read(p)
+	fmt.Println("Read (len, n, err):", len(p), n, err)
+	return n, err*/
 	return self.file.Read(p)
 }
 
