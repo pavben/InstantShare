@@ -82,21 +82,7 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 			activeFile.dataAvailableCond = sync.NewCond(activeFile.readLocker)
 
 			activeFile.timeout = timeout.New(10*time.Second, func() {
-				activeFile.Lock()
-				{
-					if activeFile.currentUpload != nil && activeFile.currentUpload.bytesWritten == activeFile.currentUpload.totalFileBytes {
-						activeFile.state = activeFileStateFinished
-					} else {
-						activeFile.state = activeFileStateAborted
-					}
-
-					activeFile.dataAvailableCond.Broadcast()
-				}
-				activeFile.Unlock()
-
-				self.Lock()
-				delete(self.activeFiles, fileName)
-				self.Unlock()
+				self.finishActiveFile(activeFile, fileName)
 			})
 
 			self.activeFiles[fileName] = activeFile
@@ -104,6 +90,24 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 			return fileName
 		}
 	}
+}
+
+func (self *ActiveFileManager) finishActiveFile(activeFile *ActiveFile, fileName string) {
+	activeFile.Lock()
+	{
+		if activeFile.currentUpload != nil && activeFile.currentUpload.bytesWritten == activeFile.currentUpload.totalFileBytes {
+			activeFile.state = activeFileStateFinished
+		} else {
+			activeFile.state = activeFileStateAborted
+		}
+
+		activeFile.dataAvailableCond.Broadcast()
+	}
+	activeFile.Unlock()
+
+	self.Lock()
+	delete(self.activeFiles, fileName)
+	self.Unlock()
 }
 
 func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, contentLength int, userKey string) (err error) {
@@ -151,16 +155,8 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 			self.fileStore.RemoveFile(fileName)
 		}
 
-		activeFile.Lock()
-
-		defer activeFile.Unlock()
-
 		activeFile.timeout.Cancel()
-		if err == nil {
-			activeFile.state = activeFileStateFinished
-		} else {
-			activeFile.state = activeFileStateAborted
-		}
+		self.finishActiveFile(activeFile, fileName)
 	}()
 
 	// now that the file has been created, indicate that by setting bytesWritten to 0
@@ -318,6 +314,8 @@ func (self *ActiveFileReader) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (self *ActiveFileReader) Read(p []byte) (n int, err error) {
+	time.Sleep(9 * time.Millisecond)
+
 	self.activeFile.readLocker.Lock()
 	defer self.activeFile.readLocker.Unlock()
 
