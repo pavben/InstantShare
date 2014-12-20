@@ -86,7 +86,7 @@ func instantShareHandler() {
 	url := *hostFlag + "/" + string(filename)
 	trayhost.SetClipboardString(url)
 	trayhost.Notification{
-		Title:   "Upload Complete",
+		Title:   "Success",
 		Body:    url,
 		Image:   img,
 		Timeout: 3 * time.Second,
