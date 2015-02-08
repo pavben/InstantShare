@@ -137,13 +137,11 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 			return nil, ErrNoPreparedUpload
 		}
 	}()
-
 	if err != nil {
 		return err
 	}
 
 	fileWriter, err := self.fileStore.GetFileWriter(fileName)
-
 	if err != nil {
 		return err
 	}
@@ -151,6 +149,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	defer func() {
 		fileWriter.Close()
 
+		// TODO: What error is being checked here? It's very unclear.
 		if err != nil {
 			self.fileStore.RemoveFile(fileName)
 		}
@@ -182,7 +181,6 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 			activeFile.timeout.Reset()
 
 			_, err := fileWriter.Write(buf[:bytesRead])
-
 			if err != nil {
 				return err
 			}
@@ -255,7 +253,6 @@ func (self *ActiveFile) GetReader(fileStore FileStore) FileReader {
 	}
 
 	fileReader, err := fileStore.GetFileReader(self.fileName)
-
 	if err != nil {
 		return nil
 	}
@@ -304,7 +301,6 @@ func (self *ActiveFileReader) Seek(offset int64, whence int) (int64, error) {
 
 	_, err := self.fileReader.Seek(offset, whence)
 	if err != nil {
-		panic(err)
 		return -1, err
 	}
 

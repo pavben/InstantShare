@@ -5,15 +5,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/shurcooL/go-goon"
 )
 
 const maxFileSize = 200 * 1024 * 1024
 
 func main() {
 	fileStore, err := NewDiskFileStore()
-
 	if err != nil {
 		log.Println(err)
 		return
@@ -24,14 +21,12 @@ func main() {
 	webHandler := getWebHandler(activeFileManager, fileStore)
 
 	err = http.ListenAndServe(":27080", webHandler)
-
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
 
 	// TODO: TLS
 	err = http.ListenAndServe(":27443", webHandler)
-
 	if err != nil {
 		log.Fatal("ListenAndServeTLS: ", err)
 	}
@@ -59,7 +54,7 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 
 				defer fileReader.Close()
 
-				goon.DumpExpr(fileReader.Size())
+				//goon.DumpExpr(fileReader.Size())
 
 				// stream the fileReader to the response
 				res.Header().Set("Content-Type", fileReader.ContentType())
@@ -116,7 +111,6 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 	}
 
 	err := activeFileManager.Upload(fileName, req.Body, int(req.ContentLength), "USERKEYTODO")
-
 	if err != nil {
 		http.Error(res, "Error: "+err.Error(), http.StatusInternalServerError)
 	}
@@ -130,7 +124,6 @@ func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager,
 	}
 
 	fileReader, err := fileStore.GetFileReader(fileName)
-
 	if err != nil {
 		return nil
 	}
