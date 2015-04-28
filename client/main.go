@@ -23,7 +23,7 @@ import (
 var hostFlag = flag.String("host", "", "Target server host.")
 var debugFlag = flag.Bool("debug", false, "Adds menu items for debugging purposes.")
 
-var httpClient = &http.Client{Timeout: 1 * time.Second}
+var httpClient = &http.Client{Timeout: 3 * time.Second}
 
 func instantShareEnabled() bool {
 	fmt.Println("check if clipboard contains something usable")
