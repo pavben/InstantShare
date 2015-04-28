@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -62,10 +61,12 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 	defer self.Unlock()
 
 	for {
-		fileName := GenerateRandomString() + "." + fileExtension
+		fileName := GenerateRandomString()
+		if fileExtension != "" {
+			fileName += "." + fileExtension
+		}
 
 		_, exists := self.activeFiles[fileName]
-
 		if !exists {
 			activeFile := &ActiveFile{
 				fileName:          fileName,
@@ -78,13 +79,10 @@ func (self *ActiveFileManager) PrepareUpload(fileExtension string, userKey strin
 			}
 
 			activeFile.readLocker = activeFile.RLocker()
-
 			activeFile.dataAvailableCond = sync.NewCond(activeFile.readLocker)
-
 			activeFile.timeout = timeout.New(10*time.Second, func() {
 				self.finishActiveFile(activeFile, fileName)
 			})
-
 			self.activeFiles[fileName] = activeFile
 
 			return fileName
@@ -169,12 +167,9 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 
 	activeFile.dataAvailableCond.Broadcast()
 
-	//buf := make([]byte, 250000)
-	buf := make([]byte, 25000)
+	buf := make([]byte, 250000)
 
 	for {
-		//time.Sleep(2 * time.Second) // HACK
-		time.Sleep(3 * time.Millisecond) // HACK
 		bytesRead, err := fileData.Read(buf)
 
 		if bytesRead > 0 {
@@ -266,8 +261,7 @@ func (self *ActiveFile) GetReader(fileStore FileStore) FileReader {
 type ActiveFileReader struct {
 	activeFile *ActiveFile
 	fileReader FileReader
-	//bytesRead  int
-	seekPos int64
+	seekPos    int64
 
 	sync.Mutex
 }
@@ -288,8 +282,6 @@ func (self *ActiveFileReader) Seek(offset int64, whence int) (int64, error) {
 	self.activeFile.readLocker.Lock()
 	defer self.activeFile.readLocker.Unlock()
 
-	fmt.Println("Seek:", offset, whence)
-
 	switch whence {
 	case os.SEEK_SET:
 		self.seekPos = offset
@@ -305,7 +297,6 @@ func (self *ActiveFileReader) Seek(offset int64, whence int) (int64, error) {
 	}
 
 	// TODO: Return errors when needed.
-	fmt.Println("Seek return:", self.seekPos)
 	return self.seekPos, nil
 }
 
@@ -314,11 +305,6 @@ func (self *ActiveFileReader) Read(p []byte) (n int, err error) {
 
 	self.activeFile.readLocker.Lock()
 	defer self.activeFile.readLocker.Unlock()
-
-	fmt.Println("Read:", len(p), "seekPos:", self.seekPos)
-	defer func() {
-		fmt.Println("Read (n, err):", n, err)
-	}()
 
 	if self.activeFile.state == activeFileStateAborted {
 		return 0, ErrUploadAborted

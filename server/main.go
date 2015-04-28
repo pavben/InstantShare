@@ -76,10 +76,6 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
 			fileExtension := req.URL.Query().Get("ext")
-			if fileExtension == "" {
-				http.Error(res, "Bad Request: Missing file extension parameter", http.StatusBadRequest)
-				return
-			}
 
 			newFilename := activeFileManager.PrepareUpload(fileExtension, "USERKEYTODO")
 
