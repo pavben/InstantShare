@@ -13,7 +13,7 @@ import (
 	"image"
 	"image/png"
 
-	_ "code.google.com/p/go.image/tiff"
+	_ "golang.org/x/image/tiff"
 
 	"github.com/shurcooL/go/u/u4"
 	"github.com/shurcooL/trayhost"
@@ -22,6 +22,8 @@ import (
 // TODO: Load from config. Have ability to set config.
 var hostFlag = flag.String("host", "", "Target server host.")
 var debugFlag = flag.Bool("debug", false, "Adds menu items for debugging purposes.")
+
+var httpClient = &http.Client{Timeout: 1 * time.Second}
 
 func instantShareEnabled() bool {
 	fmt.Println("check if clipboard contains something usable")
@@ -67,7 +69,7 @@ func instantShareHandler() {
 
 	fmt.Println("request URL")
 
-	resp, err := (&http.Client{Timeout: 1 * time.Second}).Get(*hostFlag + "/api/getfilename?ext=png")
+	resp, err := httpClient.Get(*hostFlag + "/api/getfilename?ext=png")
 	if err != nil {
 		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
 		log.Println(err)
