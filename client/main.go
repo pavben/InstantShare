@@ -40,20 +40,20 @@ func instantShareEnabled() bool {
 	switch {
 	case len(cc.Files) == 1 && filepath.Ext(cc.Files[0]) == ".png": // Single .png file.
 		b, err := ioutil.ReadFile(cc.Files[0])
-		if err == nil {
-			clipboardImage.Kind = "png"
-			clipboardImage.Bytes = b
-			return true
+		if err != nil {
+			return false
 		}
-		return false
+		clipboardImage.Kind = "png"
+		clipboardImage.Bytes = b
+		return true
 	case len(cc.Files) == 1 && filepath.Ext(cc.Files[0]) == ".mov": // Single .mov file.
 		b, err := ioutil.ReadFile(cc.Files[0])
-		if err == nil {
-			clipboardImage.Kind = "mov"
-			clipboardImage.Bytes = b
-			return true
+		if err != nil {
+			return false
 		}
-		return false
+		clipboardImage.Kind = "mov"
+		clipboardImage.Bytes = b
+		return true
 	case cc.Image.Kind != "":
 		clipboardImage = cc.Image
 		return true
