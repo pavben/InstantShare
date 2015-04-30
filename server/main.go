@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -12,7 +11,6 @@ const maxFileSize = 200 * 1024 * 1024
 
 func main() {
 	fileStore, err := NewDiskFileStore()
-
 	if err != nil {
 		log.Println(err)
 		return
@@ -23,14 +21,12 @@ func main() {
 	webHandler := getWebHandler(activeFileManager, fileStore)
 
 	err = http.ListenAndServe(":27080", webHandler)
-
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
 
 	// TODO: TLS
 	err = http.ListenAndServe(":27443", webHandler)
-
 	if err != nil {
 		log.Fatal("ListenAndServeTLS: ", err)
 	}
@@ -44,49 +40,17 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 		switch {
 		case len(path) == 1:
 			if method == "GET" {
-				//goon.Dump(req)
 				// request for a file
-
 				fileName := path[0]
-
 				fileReader := getReaderForFileName(fileName, activeFileManager, fileStore)
-
 				if fileReader == nil {
 					http.NotFound(res, req)
 					return
 				}
-
 				defer fileReader.Close()
-
 				// stream the fileReader to the response
-
-				res.Header().Add("Content-Type", fileReader.ContentType())
-
-				fileSize, err := fileReader.Size()
-
-				if err != nil {
-					http.NotFound(res, req) // only happens if the upload was aborted
-					return
-				}
-
-				res.Header().Add("Content-Length", strconv.Itoa(fileSize))
-
-				buf := make([]byte, 1024) // TODO: real buffer size
-
-				for {
-					bytesRead, err := fileReader.Read(buf)
-
-					if bytesRead > 0 {
-						res.Write(buf[:bytesRead])
-					}
-
-					if err != nil {
-						// whether the error is EOF or something else, stop streaming
-
-						// TODO: how I end the request?
-						return
-					}
-				}
+				res.Header().Set("Content-Type", fileReader.ContentType())
+				http.ServeContent(res, req, "", fileReader.ModTime(), fileReader)
 			} else if method == "PUT" {
 				// uploading a file
 				handlePutFile(res, req, path[0], activeFileManager)
@@ -94,28 +58,9 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
-			//goon.Dump(req)
+			fileExtension := req.URL.Query().Get("ext")
 
-			query, err := url.ParseQuery(req.URL.RawQuery)
-
-			if err != nil {
-				http.Error(res, "Bad Request: Invalid query parameters", http.StatusBadRequest)
-				return
-			}
-
-			fileExtension, fileExtensionProvided := query["ext"]
-
-			if !fileExtensionProvided {
-				http.Error(res, "Bad Request: Missing file extension parameter", http.StatusBadRequest)
-				return
-			}
-
-			// CHECK: Can len(fileExtension) == 0?
-			if len(fileExtension) < 1 {
-				return
-			}
-
-			newFilename := activeFileManager.PrepareUpload(fileExtension[0], "USERKEYTODO")
+			newFilename := activeFileManager.PrepareUpload(fileExtension, "USERKEYTODO")
 
 			log.Println("/api/getfilename returning", newFilename)
 
@@ -145,7 +90,6 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 	}
 
 	err := activeFileManager.Upload(fileName, req.Body, int(req.ContentLength), "USERKEYTODO")
-
 	if err != nil {
 		http.Error(res, "Error: "+err.Error(), http.StatusInternalServerError)
 	}
@@ -159,7 +103,6 @@ func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager,
 	}
 
 	fileReader, err := fileStore.GetFileReader(fileName)
-
 	if err != nil {
 		return nil
 	}
@@ -173,13 +116,13 @@ func urlPathToArray(path string) []string {
 	startIdx := 0
 
 	if len(splitPath) >= 1 && splitPath[startIdx] == "" {
-		startIdx += 1
+		startIdx++
 	}
 
 	endIdx := len(splitPath) - 1
 
 	if len(splitPath) >= 1 && splitPath[endIdx] == "" {
-		endIdx -= 1
+		endIdx--
 	}
 
 	return splitPath[startIdx : endIdx+1]

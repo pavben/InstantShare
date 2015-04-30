@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -13,8 +14,7 @@ var (
 
 const basePath = "files"
 
-type DiskFileStore struct {
-}
+type DiskFileStore struct{}
 
 func NewDiskFileStore() (FileStore, error) {
 	fileStore := &DiskFileStore{}
@@ -36,7 +36,6 @@ func NewDiskFileStore() (FileStore, error) {
 
 func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
 	file, err := os.Open(self.fileNameToPath(fileName))
-
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +50,6 @@ func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
 
 func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
 	file, err := os.Create(self.fileNameToPath(fileName))
-
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +80,6 @@ func (self *DiskFileReader) ContentType() string {
 
 func (self *DiskFileReader) Size() (int, error) {
 	fileInfo, err := self.file.Stat()
-
 	if err != nil {
 		return -1, err
 	}
@@ -96,8 +93,21 @@ func (self *DiskFileReader) Size() (int, error) {
 	return int(fileSizeInt64), nil
 }
 
+func (self *DiskFileReader) ModTime() time.Time {
+	fi, err := self.file.Stat()
+	if err != nil {
+		return time.Time{}
+	}
+
+	return fi.ModTime()
+}
+
 func (self *DiskFileReader) Read(p []byte) (int, error) {
 	return self.file.Read(p)
+}
+
+func (self *DiskFileReader) Seek(offset int64, whence int) (int64, error) {
+	return self.file.Seek(offset, whence)
 }
 
 func (self *DiskFileReader) Close() (err error) {
@@ -116,7 +126,6 @@ type DiskFileWriter struct {
 
 func (self *DiskFileWriter) Write(p []byte) (int, error) {
 	bytesWritten, err := self.file.Write(p)
-
 	if err != nil {
 		return bytesWritten, err
 	}
