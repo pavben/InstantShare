@@ -28,8 +28,6 @@ var httpClient = &http.Client{Timeout: 3 * time.Second}
 var clipboardImage trayhost.Image
 
 func instantShareEnabled() bool {
-	//fmt.Println("check if clipboard contains something usable")
-
 	fmt.Println("grab content, content-type of clipboard")
 
 	cc, err := trayhost.GetClipboardContent()

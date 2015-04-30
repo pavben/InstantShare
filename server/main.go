@@ -40,34 +40,17 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 		switch {
 		case len(path) == 1:
 			if method == "GET" {
-				//goon.Dump(req)
 				// request for a file
-
 				fileName := path[0]
-
 				fileReader := getReaderForFileName(fileName, activeFileManager, fileStore)
-
 				if fileReader == nil {
 					http.NotFound(res, req)
 					return
 				}
-
 				defer fileReader.Close()
-
-				//goon.DumpExpr(fileReader.Size())
-
 				// stream the fileReader to the response
 				res.Header().Set("Content-Type", fileReader.ContentType())
 				http.ServeContent(res, req, "", fileReader.ModTime(), fileReader)
-
-				/*fileSize, err := fileReader.Size()
-				if err != nil {
-					http.NotFound(res, req) // only happens if the upload was aborted
-					return
-				}
-
-				res.Header().Set("Content-Length", strconv.Itoa(fileSize))
-				io.Copy(res, fileReader)*/
 			} else if method == "PUT" {
 				// uploading a file
 				handlePutFile(res, req, path[0], activeFileManager)
