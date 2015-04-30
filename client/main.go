@@ -65,11 +65,12 @@ func instantShareEnabled() bool {
 func instantShareHandler() {
 	// Convert image to desired destination format (currently, always PNG).
 	// TODO: Maybe not do this for files? What if it's a jpeg.
-	var extension = "png"
+	var extension string
 	var imageData []byte
 	switch clipboardImage.Kind {
 	case "png":
 		imageData = clipboardImage.Bytes
+		extension = "png"
 	case "tiff":
 		m, _, err := image.Decode(bytes.NewReader(clipboardImage.Bytes))
 		if err != nil {
@@ -82,6 +83,7 @@ func instantShareHandler() {
 			log.Panicln("png.Encode:", err)
 		}
 		imageData = buf.Bytes()
+		extension = "png"
 	case "mov":
 		imageData = clipboardImage.Bytes
 		extension = "mov"
@@ -92,7 +94,6 @@ func instantShareHandler() {
 
 	fmt.Println("request URL")
 
-	// TODO: Perhaps move to specifying content-type instead of file extension. Or, if extension, don't strip the dot?
 	resp, err := httpClient.Get(*hostFlag + "/api/getfilename?ext=" + extension)
 	if err != nil {
 		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
