@@ -147,7 +147,7 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	defer func() {
 		fileWriter.Close()
 
-		// TODO: What error is being checked here? It's very unclear.
+		// If Upload failed and is returning a non-nil error, then remove the file we created here (inside GetFileWriter).
 		if err != nil {
 			self.fileStore.RemoveFile(fileName)
 		}
