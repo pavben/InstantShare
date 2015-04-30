@@ -116,13 +116,13 @@ func urlPathToArray(path string) []string {
 	startIdx := 0
 
 	if len(splitPath) >= 1 && splitPath[startIdx] == "" {
-		startIdx += 1
+		startIdx++
 	}
 
 	endIdx := len(splitPath) - 1
 
 	if len(splitPath) >= 1 && splitPath[endIdx] == "" {
-		endIdx -= 1
+		endIdx--
 	}
 
 	return splitPath[startIdx : endIdx+1]

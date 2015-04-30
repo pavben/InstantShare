@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	ErrAlreadyUploading = errors.New("That file is already uploading or failed")
-	ErrNoPreparedUpload = errors.New("No prepared upload with this filename")
-	ErrUploadAborted    = errors.New("Upload aborted")
+	ErrAlreadyUploading = errors.New("that file is already uploading or failed")
+	ErrNoPreparedUpload = errors.New("no prepared upload with this filename")
+	ErrUploadAborted    = errors.New("upload aborted")
 )
 
 type ActiveFileManager struct {
@@ -112,28 +112,25 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 	// prepare upload
 	activeFile, err := func() (*ActiveFile, error) {
 		self.Lock()
-
 		defer self.Unlock()
 
-		if activeFile, exists := self.activeFiles[fileName]; exists {
-			activeFile.Lock()
-
-			defer activeFile.Unlock()
-
-			if activeFile.currentUpload == nil {
-				activeFile.currentUpload = &currentUpload{
-					bytesWritten:   -1,
-					totalFileBytes: contentLength,
-				}
-
-				return activeFile, nil
-			} else {
-
-				return nil, ErrAlreadyUploading
-			}
-		} else {
+		activeFile, exists := self.activeFiles[fileName]
+		if !exists {
 			return nil, ErrNoPreparedUpload
 		}
+
+		activeFile.Lock()
+		defer activeFile.Unlock()
+
+		if activeFile.currentUpload != nil {
+			return nil, ErrAlreadyUploading
+		}
+
+		activeFile.currentUpload = &currentUpload{
+			bytesWritten:   -1,
+			totalFileBytes: contentLength,
+		}
+		return activeFile, nil
 	}()
 	if err != nil {
 		return err
@@ -200,10 +197,9 @@ func (self *ActiveFileManager) Upload(fileName string, fileData io.ReadCloser, c
 				// no need to remove it from ActiveFileManager since the timeout will do that
 
 				return nil
-			} else {
-				// non-EOF error
-				return err
 			}
+			// non-EOF error
+			return err
 		}
 	}
 }
@@ -216,9 +212,8 @@ func (self *ActiveFileManager) GetReaderForFileName(fileName string) FileReader 
 
 		if activeFile, exists := self.activeFiles[fileName]; exists {
 			return activeFile
-		} else {
-			return nil
 		}
+		return nil
 	}()
 
 	if activeFile == nil {
