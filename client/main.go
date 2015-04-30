@@ -24,8 +24,11 @@ var debugFlag = flag.Bool("debug", false, "Adds menu items for debugging purpose
 
 var httpClient = &http.Client{Timeout: 3 * time.Second}
 
-// TODO: Rename Image to "Media" or so, since it's used for both images and videos of various types?
-var clipboardImage trayhost.Image
+var clipboard struct {
+	extension string // File extension in lower case: "png", "tiff", "mov", etc. Empty string means no content.
+	bytes     []byte
+}
+var notificationThumbnail trayhost.Image
 
 func instantShareEnabled() bool {
 	fmt.Println("grab content, content-type of clipboard")
@@ -41,19 +44,23 @@ func instantShareEnabled() bool {
 		if err != nil {
 			return false
 		}
-		clipboardImage.Kind = "png"
-		clipboardImage.Bytes = b
+		clipboard.extension = "png"
+		clipboard.bytes = b
+		notificationThumbnail = trayhost.Image{Kind: "png", Bytes: b}
 		return true
 	case len(cc.Files) == 1 && filepath.Ext(cc.Files[0]) == ".mov": // Single .mov file.
 		b, err := ioutil.ReadFile(cc.Files[0])
 		if err != nil {
 			return false
 		}
-		clipboardImage.Kind = "mov"
-		clipboardImage.Bytes = b
+		clipboard.extension = "mov"
+		clipboard.bytes = b
+		notificationThumbnail = trayhost.Image{}
 		return true
 	case cc.Image.Kind != "":
-		clipboardImage = cc.Image
+		clipboard.extension = string(cc.Image.Kind)
+		clipboard.bytes = cc.Image.Bytes
+		notificationThumbnail = cc.Image
 		return true
 	default:
 		return false
@@ -61,16 +68,14 @@ func instantShareEnabled() bool {
 }
 
 func instantShareHandler() {
-	// Convert image to desired destination format (currently, always PNG).
+	// Convert image to desired destination format (currently, always png or mov).
 	// TODO: Maybe not do this for files? What if it's a jpeg.
-	var extension string
-	var imageData []byte
-	switch clipboardImage.Kind {
+	switch clipboard.extension {
 	case "png":
-		imageData = clipboardImage.Bytes
-		extension = "png"
+		// Nothing to do.
 	case "tiff":
-		m, _, err := image.Decode(bytes.NewReader(clipboardImage.Bytes))
+		// Convert tiff to png.
+		m, _, err := image.Decode(bytes.NewReader(clipboard.bytes))
 		if err != nil {
 			log.Panicln("image.Decode:", err)
 		}
@@ -80,19 +85,19 @@ func instantShareHandler() {
 		if err != nil {
 			log.Panicln("png.Encode:", err)
 		}
-		imageData = buf.Bytes()
-		extension = "png"
+
+		clipboard.extension = "png"
+		clipboard.bytes = buf.Bytes()
 	case "mov":
-		imageData = clipboardImage.Bytes
-		extension = "mov"
+		// Nothing to do.
 	default:
-		log.Println("unsupported source image kind:", clipboardImage.Kind)
+		log.Println("Unsupported clipboard content extension:", clipboard.extension)
 		return
 	}
 
 	fmt.Println("request URL")
 
-	resp, err := httpClient.Get(*hostFlag + "/api/getfilename?ext=" + extension)
+	resp, err := httpClient.Get(*hostFlag + "/api/getfilename?ext=" + clipboard.extension)
 	if err != nil {
 		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
 		log.Println(err)
@@ -113,7 +118,7 @@ func instantShareHandler() {
 	trayhost.Notification{
 		Title:   "Success",
 		Body:    url,
-		Image:   clipboardImage,
+		Image:   notificationThumbnail,
 		Timeout: 3 * time.Second,
 		Handler: func() {
 			// On click, open the displayed URL.
@@ -121,10 +126,10 @@ func instantShareHandler() {
 		},
 	}.Display()
 
-	fmt.Println("upload image in background of size", len(imageData))
+	fmt.Println("upload image in background of size", len(clipboard.bytes))
 
-	go func() {
-		req, err := http.NewRequest("PUT", url, bytes.NewReader(imageData))
+	go func(b []byte) {
+		req, err := http.NewRequest("PUT", url, bytes.NewReader(b))
 		if err != nil {
 			log.Println(err)
 			return
@@ -137,7 +142,7 @@ func instantShareHandler() {
 		}
 		_ = resp.Body.Close()
 		fmt.Println("done")
-	}()
+	}(clipboard.bytes)
 }
 
 func main() {
