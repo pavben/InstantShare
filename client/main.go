@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/shurcooL/go/u/u4"
@@ -30,6 +31,18 @@ var clipboard struct {
 }
 var notificationThumbnail trayhost.Image
 
+// fileThumbnail returns a thumbnail image that represents the input file, or an empty image if it cannot.
+func fileThumbnail(extension string, bytes []byte) trayhost.Image {
+	switch extension {
+	case "png":
+		return trayhost.Image{Kind: trayhost.ImageKind(extension), Bytes: bytes}
+	default:
+		return trayhost.Image{}
+	}
+}
+
+// instantShareEnabled returns true if we have valid content in clipboard that can be instantly shared.
+// It also updates values of clipboard and notificationThumbnail if so.
 func instantShareEnabled() bool {
 	fmt.Println("grab content, content-type of clipboard")
 
@@ -39,23 +52,15 @@ func instantShareEnabled() bool {
 	}
 
 	switch {
-	case len(cc.Files) == 1 && filepath.Ext(cc.Files[0]) == ".png": // Single .png file.
+	case len(cc.Files) == 1: // Single file.
 		b, err := ioutil.ReadFile(cc.Files[0])
 		if err != nil {
 			return false
 		}
-		clipboard.extension = "png"
+		extension := strings.TrimPrefix(filepath.Ext(cc.Files[0]), ".")
+		clipboard.extension = extension
 		clipboard.bytes = b
-		notificationThumbnail = trayhost.Image{Kind: "png", Bytes: b}
-		return true
-	case len(cc.Files) == 1 && filepath.Ext(cc.Files[0]) == ".mov": // Single .mov file.
-		b, err := ioutil.ReadFile(cc.Files[0])
-		if err != nil {
-			return false
-		}
-		clipboard.extension = "mov"
-		clipboard.bytes = b
-		notificationThumbnail = trayhost.Image{}
+		notificationThumbnail = fileThumbnail(extension, b)
 		return true
 	case cc.Image.Kind != "":
 		clipboard.extension = string(cc.Image.Kind)
@@ -91,8 +96,7 @@ func instantShareHandler() {
 	case "mov":
 		// Nothing to do.
 	default:
-		log.Println("Unsupported clipboard content extension:", clipboard.extension)
-		return
+		// Nothing to do.
 	}
 
 	fmt.Println("request URL")
