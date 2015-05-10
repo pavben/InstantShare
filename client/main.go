@@ -73,11 +73,8 @@ func instantShareEnabled() bool {
 }
 
 func instantShareHandler() {
-	// Convert image to desired destination format (currently, always png or mov).
-	// TODO: Maybe not do this for files? What if it's a jpeg.
+	// Convert some source image types to desired destination format.
 	switch clipboard.extension {
-	case "png":
-		// Nothing to do.
 	case "tiff":
 		// Convert tiff to png.
 		m, _, err := image.Decode(bytes.NewReader(clipboard.bytes))
@@ -93,10 +90,6 @@ func instantShareHandler() {
 
 		clipboard.extension = "png"
 		clipboard.bytes = buf.Bytes()
-	case "mov":
-		// Nothing to do.
-	default:
-		// Nothing to do.
 	}
 
 	fmt.Println("request URL")
