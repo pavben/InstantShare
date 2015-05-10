@@ -34,6 +34,8 @@ var notificationThumbnail trayhost.Image
 // fileThumbnail returns a thumbnail image that represents the input file, or an empty image if it cannot.
 func fileThumbnail(extension string, bytes []byte) trayhost.Image {
 	switch extension {
+	case "jpg", "jpeg":
+		fallthrough
 	case "png":
 		return trayhost.Image{Kind: trayhost.ImageKind(extension), Bytes: bytes}
 	default:
