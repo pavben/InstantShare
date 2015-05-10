@@ -66,6 +66,26 @@ func instantShareEnabled() bool {
 		clipboard.extension = string(cc.Image.Kind)
 		clipboard.bytes = cc.Image.Bytes
 		notificationThumbnail = cc.Image
+
+		// Convert some source clipboard image types to desired destination format.
+		switch clipboard.extension {
+		case "tiff":
+			// Convert tiff to png.
+			m, _, err := image.Decode(bytes.NewReader(clipboard.bytes))
+			if err != nil {
+				log.Panicln("image.Decode:", err)
+			}
+
+			var buf bytes.Buffer
+			err = png.Encode(&buf, m)
+			if err != nil {
+				log.Panicln("png.Encode:", err)
+			}
+
+			clipboard.extension = "png"
+			clipboard.bytes = buf.Bytes()
+		}
+
 		return true
 	default:
 		return false
@@ -73,25 +93,6 @@ func instantShareEnabled() bool {
 }
 
 func instantShareHandler() {
-	// Convert some source image types to desired destination format.
-	switch clipboard.extension {
-	case "tiff":
-		// Convert tiff to png.
-		m, _, err := image.Decode(bytes.NewReader(clipboard.bytes))
-		if err != nil {
-			log.Panicln("image.Decode:", err)
-		}
-
-		var buf bytes.Buffer
-		err = png.Encode(&buf, m)
-		if err != nil {
-			log.Panicln("png.Encode:", err)
-		}
-
-		clipboard.extension = "png"
-		clipboard.bytes = buf.Bytes()
-	}
-
 	fmt.Println("request URL")
 
 	resp, err := httpClient.Get(*hostFlag + "/api/getfilename?ext=" + clipboard.extension)
