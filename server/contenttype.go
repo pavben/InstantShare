@@ -1,18 +1,19 @@
 package main
 
-import "path/filepath"
+import (
+	"mime"
+	"path/filepath"
+)
 
 func ContentTypeFromFileName(fileName string) string {
-	switch filepath.Ext(fileName) {
-	case ".png":
-		return "image/png"
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".mov":
-		// TODO: Handle this correctly. "video/quicktime" is correct, but I'm temporarily using "video/mp4" for testing in Chrome.
-		//return "video/quicktime"
+	ext := filepath.Ext(fileName)
+	if ext == ".mov" {
+		// "video/quicktime" is correct, but temporarily using "video/mp4" because it plays in Chrome.
 		return "video/mp4"
-	default:
+	}
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
 		return "application/octet-stream"
 	}
+	return contentType
 }

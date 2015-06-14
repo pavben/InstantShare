@@ -1,4 +1,4 @@
-InstantShare
-============
+Instant Share
+=============
 
-Instantly share images/files on the web.
+Instantly share images, videos, and other files on the web.
