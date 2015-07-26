@@ -1,3 +1,4 @@
+// Command client is the Instant Share client. It runs in your operating system's tray bar for quick access.
 package main
 
 import (
@@ -186,7 +187,7 @@ func main() {
 					handler := func() {
 						u4.Open("http://www.example.com/image.png")
 					}
-					notification := trayhost.Notification{Title: "Upload Complete", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second, Handler: handler}
+					notification := trayhost.Notification{Title: "Success", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second, Handler: handler}
 					//trayhost.Notification{Title: "Upload Failed", Body: "error description goes here"}.Display()
 					if cc, err := trayhost.GetClipboardContent(); err == nil && cc.Image.Kind != "" {
 						notification.Image = cc.Image
