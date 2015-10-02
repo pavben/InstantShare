@@ -38,6 +38,10 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 		method := req.Method
 		path := urlPathToArray(req.URL.Path)
 
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		res.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+
 		switch {
 		case len(path) == 1:
 			if method == "GET" {
@@ -55,7 +59,10 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 			} else if method == "PUT" {
 				// uploading a file
 				handlePutFile(res, req, path[0], activeFileManager)
+			} else if method == "OPTIONS" {
+				return
 			} else {
+				res.Header().Set("Allow", "GET, PUT, OPTIONS")
 				http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 			}
 		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
