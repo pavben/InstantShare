@@ -1,4 +1,4 @@
-// Command server is the Instant Share server. It is responsible for accepting uploads and serving those files.
+// Instant Share server is responsible for accepting uploads and streaming uploaded files.
 package main
 
 import (
@@ -11,13 +11,13 @@ import (
 const maxFileSize = 200 * 1024 * 1024
 
 func main() {
-	fileStore, err := NewDiskFileStore()
+	fileStore, err := newDiskFileStore()
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	activeFileManager := NewActiveFileManager(fileStore)
+	activeFileManager := newActiveFileManager(fileStore)
 
 	webHandler := getWebHandler(activeFileManager, fileStore)
 
@@ -27,7 +27,7 @@ func main() {
 	}
 }
 
-func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) http.Handler {
+func getWebHandler(activeFileManager *activeFileManager, fileStore fileStore) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		method := req.Method
 		path := urlPathToArray(req.URL.Path)
@@ -66,7 +66,7 @@ func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) ht
 	})
 }
 
-func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, activeFileManager *ActiveFileManager) {
+func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, activeFileManager *activeFileManager) {
 	contentType := req.Header.Get("Content-Type")
 
 	if contentType == "" {
@@ -90,7 +90,7 @@ func handlePutFile(res http.ResponseWriter, req *http.Request, fileName string, 
 	}
 }
 
-func getReaderForFileName(fileName string, activeFileManager *ActiveFileManager, fileStore FileStore) FileReader {
+func getReaderForFileName(fileName string, activeFileManager *activeFileManager, fileStore fileStore) fileReader {
 	fileReader := activeFileManager.GetReaderForFileName(fileName)
 
 	if fileReader != nil {
