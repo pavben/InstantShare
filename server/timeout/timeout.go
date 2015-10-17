@@ -28,12 +28,12 @@ func New(duration time.Duration, timeoutFunc func()) Timeout {
 			select {
 			case <-time.After(duration):
 				timeoutFunc()
-				return
+				break
 			case responseChan := <-timeout.resetChan:
 				responseChan <- true
 			case responseChan := <-timeout.cancelChan:
 				responseChan <- true
-				return
+				break
 			}
 		}
 
