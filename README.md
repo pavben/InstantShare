@@ -1,5 +1,4 @@
-Instant Share
-=============
+# InstantShare [![Build Status](https://travis-ci.org/pavben/InstantShare.svg?branch=master)](https://travis-ci.org/pavben/InstantShare) [![GoDoc](https://godoc.org/github.com/pavben/InstantShare?status.svg)](https://godoc.org/github.com/pavben/InstantShare)
 
 Instantly share images, videos, and other files on the web.
 
