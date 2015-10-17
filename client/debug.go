@@ -10,7 +10,6 @@ import (
 
 func debugMenuItems() []trayhost.MenuItem {
 	return []trayhost.MenuItem{
-		trayhost.SeparatorMenuItem(),
 		trayhost.MenuItem{
 			Title: "Debug: Get Clipboard Content",
 			Handler: func() {

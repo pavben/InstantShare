@@ -164,6 +164,7 @@ func main() {
 		},
 	}
 	if *debugFlag {
+		menuItems = append(menuItems, trayhost.SeparatorMenuItem())
 		menuItems = append(menuItems, debugMenuItems()...)
 	}
 
