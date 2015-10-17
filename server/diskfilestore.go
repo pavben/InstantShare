@@ -34,8 +34,8 @@ func newDiskFileStore() (fileStore, error) {
 	return fileStore, nil
 }
 
-func (diskFileStore *diskFileStore) GetFileReader(fileName string) (fileReader, error) {
-	file, err := os.Open(diskFileStore.fileNameToPath(fileName))
+func (dfs *diskFileStore) GetFileReader(fileName string) (fileReader, error) {
+	file, err := os.Open(dfs.fileNameToPath(fileName))
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +48,8 @@ func (diskFileStore *diskFileStore) GetFileReader(fileName string) (fileReader, 
 	return diskFileReader, nil
 }
 
-func (diskFileStore *diskFileStore) GetFileWriter(fileName string) (fileWriter, error) {
-	file, err := os.Create(diskFileStore.fileNameToPath(fileName))
+func (dfs *diskFileStore) GetFileWriter(fileName string) (fileWriter, error) {
+	file, err := os.Create(dfs.fileNameToPath(fileName))
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,11 @@ func (diskFileStore *diskFileStore) GetFileWriter(fileName string) (fileWriter, 
 	return diskFileWriter, nil
 }
 
-func (diskFileStore *diskFileStore) RemoveFile(fileName string) error {
-	return os.Remove(diskFileStore.fileNameToPath(fileName))
+func (dfs *diskFileStore) RemoveFile(fileName string) error {
+	return os.Remove(dfs.fileNameToPath(fileName))
 }
 
-func (diskFileStore *diskFileStore) fileNameToPath(fileName string) string {
+func (dfs *diskFileStore) fileNameToPath(fileName string) string {
 	return filepath.Join(basePath, fileName)
 }
 
@@ -74,12 +74,12 @@ type diskFileReader struct {
 	contentType string
 }
 
-func (diskFileReader *diskFileReader) ContentType() string {
-	return diskFileReader.contentType
+func (dfr *diskFileReader) ContentType() string {
+	return dfr.contentType
 }
 
-func (diskFileReader *diskFileReader) Size() (int, error) {
-	fileInfo, err := diskFileReader.file.Stat()
+func (dfr *diskFileReader) Size() (int, error) {
+	fileInfo, err := dfr.file.Stat()
 	if err != nil {
 		return -1, err
 	}
@@ -93,8 +93,8 @@ func (diskFileReader *diskFileReader) Size() (int, error) {
 	return int(fileSizeInt64), nil
 }
 
-func (diskFileReader *diskFileReader) ModTime() time.Time {
-	fi, err := diskFileReader.file.Stat()
+func (dfr *diskFileReader) ModTime() time.Time {
+	fi, err := dfr.file.Stat()
 	if err != nil {
 		return time.Time{}
 	}
@@ -102,19 +102,19 @@ func (diskFileReader *diskFileReader) ModTime() time.Time {
 	return fi.ModTime()
 }
 
-func (diskFileReader *diskFileReader) Read(p []byte) (int, error) {
-	return diskFileReader.file.Read(p)
+func (dfr *diskFileReader) Read(p []byte) (int, error) {
+	return dfr.file.Read(p)
 }
 
-func (diskFileReader *diskFileReader) Seek(offset int64, whence int) (int64, error) {
-	return diskFileReader.file.Seek(offset, whence)
+func (dfr *diskFileReader) Seek(offset int64, whence int) (int64, error) {
+	return dfr.file.Seek(offset, whence)
 }
 
-func (diskFileReader *diskFileReader) Close() (err error) {
-	err = diskFileReader.file.Close()
+func (dfr *diskFileReader) Close() (err error) {
+	err = dfr.file.Close()
 
 	if err == nil {
-		diskFileReader.file = nil
+		dfr.file = nil
 	}
 
 	return
@@ -124,23 +124,23 @@ type diskFileWriter struct {
 	file *os.File
 }
 
-func (diskFileWriter *diskFileWriter) Write(p []byte) (int, error) {
-	bytesWritten, err := diskFileWriter.file.Write(p)
+func (dfw *diskFileWriter) Write(p []byte) (int, error) {
+	bytesWritten, err := dfw.file.Write(p)
 	if err != nil {
 		return bytesWritten, err
 	}
 
 	// the data written must be available for reading immediately as Write returns
-	err = diskFileWriter.file.Sync()
+	err = dfw.file.Sync()
 
 	return bytesWritten, err
 }
 
-func (diskFileWriter *diskFileWriter) Close() (err error) {
-	err = diskFileWriter.file.Close()
+func (dfw *diskFileWriter) Close() (err error) {
+	err = dfw.file.Close()
 
 	if err == nil {
-		diskFileWriter.file = nil
+		dfw.file = nil
 	}
 
 	return

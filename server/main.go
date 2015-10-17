@@ -1,4 +1,4 @@
-// Command server is the Instant Share server. It is responsible for accepting uploads and serving those files.
+// Instant Share server is responsible for accepting uploads and streaming uploaded files.
 package main
 
 import (

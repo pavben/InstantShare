@@ -56,9 +56,9 @@ func newActiveFileManager(fileStore fileStore) *activeFileManager {
 	}
 }
 
-func (activeFileManager *activeFileManager) PrepareUpload(fileExtension string, userKey string) string {
-	activeFileManager.Lock()
-	defer activeFileManager.Unlock()
+func (afm *activeFileManager) PrepareUpload(fileExtension string, userKey string) string {
+	afm.Lock()
+	defer afm.Unlock()
 
 	for {
 		fileName := generateRandomString()
@@ -66,7 +66,7 @@ func (activeFileManager *activeFileManager) PrepareUpload(fileExtension string, 
 			fileName += "." + fileExtension
 		}
 
-		_, exists := activeFileManager.activeFiles[fileName]
+		_, exists := afm.activeFiles[fileName]
 		if !exists {
 			activeFile := &activeFile{
 				fileName:          fileName,
@@ -81,16 +81,16 @@ func (activeFileManager *activeFileManager) PrepareUpload(fileExtension string, 
 			activeFile.readLocker = activeFile.RLocker()
 			activeFile.dataAvailableCond = sync.NewCond(activeFile.readLocker)
 			activeFile.timeout = timeout.New(10*time.Second, func() {
-				activeFileManager.finishActiveFile(activeFile, fileName)
+				afm.finishActiveFile(activeFile, fileName)
 			})
-			activeFileManager.activeFiles[fileName] = activeFile
+			afm.activeFiles[fileName] = activeFile
 
 			return fileName
 		}
 	}
 }
 
-func (activeFileManager *activeFileManager) finishActiveFile(activeFile *activeFile, fileName string) {
+func (afm *activeFileManager) finishActiveFile(activeFile *activeFile, fileName string) {
 	activeFile.Lock()
 	{
 		if activeFile.currentUpload != nil && activeFile.currentUpload.bytesWritten == activeFile.currentUpload.totalFileBytes {
@@ -103,18 +103,18 @@ func (activeFileManager *activeFileManager) finishActiveFile(activeFile *activeF
 	}
 	activeFile.Unlock()
 
-	activeFileManager.Lock()
-	delete(activeFileManager.activeFiles, fileName)
-	activeFileManager.Unlock()
+	afm.Lock()
+	delete(afm.activeFiles, fileName)
+	afm.Unlock()
 }
 
-func (activeFileManager *activeFileManager) Upload(fileName string, fileData io.ReadCloser, contentLength int, userKey string) (err error) {
+func (afm *activeFileManager) Upload(fileName string, fileData io.ReadCloser, contentLength int, userKey string) (err error) {
 	// prepare upload
 	activeFile, err := func() (*activeFile, error) {
-		activeFileManager.Lock()
-		defer activeFileManager.Unlock()
+		afm.Lock()
+		defer afm.Unlock()
 
-		activeFile, exists := activeFileManager.activeFiles[fileName]
+		activeFile, exists := afm.activeFiles[fileName]
 		if !exists {
 			return nil, errNoPreparedUpload
 		}
@@ -136,7 +136,7 @@ func (activeFileManager *activeFileManager) Upload(fileName string, fileData io.
 		return err
 	}
 
-	fileWriter, err := activeFileManager.fileStore.GetFileWriter(fileName)
+	fileWriter, err := afm.fileStore.GetFileWriter(fileName)
 	if err != nil {
 		return err
 	}
@@ -146,18 +146,18 @@ func (activeFileManager *activeFileManager) Upload(fileName string, fileData io.
 
 		// If Upload failed and is returning a non-nil error, then remove the file we created here (inside GetFileWriter).
 		if err != nil {
-			activeFileManager.fileStore.RemoveFile(fileName)
+			afm.fileStore.RemoveFile(fileName)
 		}
 
 		activeFile.timeout.Cancel()
-		activeFileManager.finishActiveFile(activeFile, fileName)
+		afm.finishActiveFile(activeFile, fileName)
 	}()
 
 	// now that the file has been created, indicate that by setting bytesWritten to 0
 	func() {
-		activeFileManager.Lock()
+		afm.Lock()
 
-		defer activeFileManager.Unlock()
+		defer afm.Unlock()
 
 		activeFile.currentUpload.bytesWritten = 0
 	}()
@@ -204,13 +204,13 @@ func (activeFileManager *activeFileManager) Upload(fileName string, fileData io.
 	}
 }
 
-func (activeFileManager *activeFileManager) GetReaderForFileName(fileName string) fileReader {
+func (afm *activeFileManager) GetReaderForFileName(fileName string) fileReader {
 	activeFile := func() *activeFile {
-		activeFileManager.RLock()
+		afm.RLock()
 
-		defer activeFileManager.RUnlock()
+		defer afm.RUnlock()
 
-		if activeFile, exists := activeFileManager.activeFiles[fileName]; exists {
+		if activeFile, exists := afm.activeFiles[fileName]; exists {
 			return activeFile
 		}
 		return nil
@@ -220,35 +220,35 @@ func (activeFileManager *activeFileManager) GetReaderForFileName(fileName string
 		return nil
 	}
 
-	return activeFile.GetReader(activeFileManager.fileStore)
+	return activeFile.GetReader(afm.fileStore)
 }
 
-// This will block until activeFile.currentUpload is set and the file writer has been created
-func (activeFile *activeFile) GetReader(fileStore fileStore) fileReader {
-	activeFile.readLocker.Lock()
+// This will block until af.currentUpload is set and the file writer has been created
+func (af *activeFile) GetReader(fileStore fileStore) fileReader {
+	af.readLocker.Lock()
 
-	defer activeFile.readLocker.Unlock()
+	defer af.readLocker.Unlock()
 
-	if activeFile.state == activeFileStateAborted {
+	if af.state == activeFileStateAborted {
 		return nil
 	}
 
 	// wait until the file is created
-	for activeFile.currentUpload == nil || activeFile.currentUpload.bytesWritten < 0 {
-		activeFile.dataAvailableCond.Wait()
+	for af.currentUpload == nil || af.currentUpload.bytesWritten < 0 {
+		af.dataAvailableCond.Wait()
 
-		if activeFile.state == activeFileStateAborted {
+		if af.state == activeFileStateAborted {
 			return nil
 		}
 	}
 
-	fileReader, err := fileStore.GetFileReader(activeFile.fileName)
+	fileReader, err := fileStore.GetFileReader(af.fileName)
 	if err != nil {
 		return nil
 	}
 
 	return &activeFileReader{
-		activeFile: activeFile,
+		activeFile: af,
 		fileReader: fileReader,
 	}
 }
@@ -261,68 +261,68 @@ type activeFileReader struct {
 	sync.Mutex
 }
 
-func (activeFileReader *activeFileReader) ContentType() string {
-	return contentTypeFromFileName(activeFileReader.activeFile.fileName)
+func (afr *activeFileReader) ContentType() string {
+	return contentTypeFromFileName(afr.activeFile.fileName)
 }
 
-func (activeFileReader *activeFileReader) Size() (int, error) {
-	return activeFileReader.activeFile.currentUpload.totalFileBytes, nil
+func (afr *activeFileReader) Size() (int, error) {
+	return afr.activeFile.currentUpload.totalFileBytes, nil
 }
 
-func (activeFileReader *activeFileReader) ModTime() time.Time {
+func (afr *activeFileReader) ModTime() time.Time {
 	return time.Time{}
 }
 
-func (activeFileReader *activeFileReader) Seek(offset int64, whence int) (int64, error) {
-	activeFileReader.activeFile.readLocker.Lock()
-	defer activeFileReader.activeFile.readLocker.Unlock()
+func (afr *activeFileReader) Seek(offset int64, whence int) (int64, error) {
+	afr.activeFile.readLocker.Lock()
+	defer afr.activeFile.readLocker.Unlock()
 
 	switch whence {
 	case os.SEEK_SET:
-		activeFileReader.seekPos = offset
+		afr.seekPos = offset
 	case os.SEEK_CUR:
-		activeFileReader.seekPos += offset
+		afr.seekPos += offset
 	case os.SEEK_END:
-		activeFileReader.seekPos = int64(activeFileReader.activeFile.currentUpload.totalFileBytes) - offset
+		afr.seekPos = int64(afr.activeFile.currentUpload.totalFileBytes) - offset
 	}
 
-	_, err := activeFileReader.fileReader.Seek(offset, whence)
+	_, err := afr.fileReader.Seek(offset, whence)
 	if err != nil {
 		return -1, err
 	}
 
 	// TODO: Return errors when needed.
-	return activeFileReader.seekPos, nil
+	return afr.seekPos, nil
 }
 
-func (activeFileReader *activeFileReader) Read(p []byte) (n int, err error) {
+func (afr *activeFileReader) Read(p []byte) (n int, err error) {
 	time.Sleep(9 * time.Millisecond)
 
-	activeFileReader.activeFile.readLocker.Lock()
-	defer activeFileReader.activeFile.readLocker.Unlock()
+	afr.activeFile.readLocker.Lock()
+	defer afr.activeFile.readLocker.Unlock()
 
-	if activeFileReader.activeFile.state == activeFileStateAborted {
+	if afr.activeFile.state == activeFileStateAborted {
 		return 0, errUploadAborted
 	}
 
 	// if done reading
 	// TODO: Maybe error if > totalFileBytes.
-	if activeFileReader.seekPos >= int64(activeFileReader.activeFile.currentUpload.totalFileBytes) {
+	if afr.seekPos >= int64(afr.activeFile.currentUpload.totalFileBytes) {
 		return 0, io.EOF
 	}
 
 	// wait until there is more data to read
-	for activeFileReader.seekPos >= int64(activeFileReader.activeFile.currentUpload.bytesWritten) {
-		activeFileReader.activeFile.dataAvailableCond.Wait()
+	for afr.seekPos >= int64(afr.activeFile.currentUpload.bytesWritten) {
+		afr.activeFile.dataAvailableCond.Wait()
 
-		if activeFileReader.activeFile.state == activeFileStateAborted {
+		if afr.activeFile.state == activeFileStateAborted {
 			return 0, errUploadAborted
 		}
 	}
 
-	n, err = activeFileReader.fileReader.Read(p)
+	n, err = afr.fileReader.Read(p)
 
-	activeFileReader.seekPos += int64(n)
+	afr.seekPos += int64(n)
 
 	// clear the error if it's EOF since it won't be EOF when more data is written
 	if err == io.EOF {
@@ -332,6 +332,6 @@ func (activeFileReader *activeFileReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (activeFileReader *activeFileReader) Close() error {
-	return activeFileReader.fileReader.Close()
+func (afr *activeFileReader) Close() error {
+	return afr.fileReader.Close()
 }
