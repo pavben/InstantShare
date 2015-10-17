@@ -2,6 +2,7 @@ package timeout
 
 import "time"
 
+// Timeout is an interface for objects that facilitate managing active timeouts, allowing resetting and canceling
 type Timeout interface {
 	Reset() bool
 	Cancel() bool
@@ -52,18 +53,18 @@ func New(duration time.Duration, timeoutFunc func()) Timeout {
 	return timeout
 }
 
-func (self *timeout) Reset() bool {
+func (t *timeout) Reset() bool {
 	responseChan := make(responseChanType)
 
-	self.resetChan <- responseChan
+	t.resetChan <- responseChan
 
 	return <-responseChan
 }
 
-func (self *timeout) Cancel() bool {
+func (t *timeout) Cancel() bool {
 	responseChan := make(responseChanType)
 
-	self.cancelChan <- responseChan
+	t.cancelChan <- responseChan
 
 	return <-responseChan
 }
