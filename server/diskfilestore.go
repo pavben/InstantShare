@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -48,7 +49,7 @@ func (dfs *diskFileStore) GetFileReader(fileName string) (fileReader, error) {
 	return diskFileReader, nil
 }
 
-func (dfs *diskFileStore) GetFileWriter(fileName string) (fileWriter, error) {
+func (dfs *diskFileStore) GetFileWriter(fileName string) (io.WriteCloser, error) {
 	file, err := os.Create(dfs.fileNameToPath(fileName))
 	if err != nil {
 		return nil, err

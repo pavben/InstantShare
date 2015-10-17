@@ -7,7 +7,7 @@ import (
 
 type fileStore interface {
 	GetFileReader(fileName string) (fileReader, error)
-	GetFileWriter(fileName string) (fileWriter, error)
+	GetFileWriter(fileName string) (io.WriteCloser, error)
 	RemoveFile(fileName string) error
 }
 
@@ -19,9 +19,4 @@ type fileReader interface {
 
 	// HACK: Should use Stat() method; return error.
 	ModTime() time.Time
-}
-
-type fileWriter interface {
-	Write(p []byte) (int, error)
-	Close() error
 }
