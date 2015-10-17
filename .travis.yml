@@ -1,6 +1,10 @@
 language: go
 go:
   - 1.5
+addons:
+  apt:
+    packages:
+    - libappindicator-dev
 install:
   - go get golang.org/x/tools/cmd/vet
 script:
