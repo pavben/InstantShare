@@ -24,16 +24,17 @@ func New(duration time.Duration, timeoutFunc func()) Timeout {
 	}
 
 	go func() {
+	ActiveLoop:
 		for {
 			select {
 			case <-time.After(duration):
 				timeoutFunc()
-				break
+				break ActiveLoop
 			case responseChan := <-timeout.resetChan:
 				responseChan <- true
 			case responseChan := <-timeout.cancelChan:
 				responseChan <- true
-				break
+				break ActiveLoop
 			}
 		}
 
