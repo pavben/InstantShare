@@ -10,7 +10,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func GenerateRandomString() string {
+func generateRandomString() string {
 	randomNumber := uint64(rand.Int63())
 
 	return strconv.FormatUint(randomNumber, 36)

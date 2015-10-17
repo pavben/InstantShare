@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	ErrFileTooBig = errors.New("File too big")
+	errFileTooBig = errors.New("File too big")
 )
 
 const basePath = "files"
 
-type DiskFileStore struct{}
+type diskFileStore struct{}
 
-func NewDiskFileStore() (FileStore, error) {
-	fileStore := &DiskFileStore{}
+func newDiskFileStore() (fileStore, error) {
+	fileStore := &diskFileStore{}
 
 	_, err := os.Stat(basePath)
 
@@ -34,52 +34,52 @@ func NewDiskFileStore() (FileStore, error) {
 	return fileStore, nil
 }
 
-func (self *DiskFileStore) GetFileReader(fileName string) (FileReader, error) {
-	file, err := os.Open(self.fileNameToPath(fileName))
+func (diskFileStore *diskFileStore) GetFileReader(fileName string) (fileReader, error) {
+	file, err := os.Open(diskFileStore.fileNameToPath(fileName))
 	if err != nil {
 		return nil, err
 	}
 
-	diskFileReader := &DiskFileReader{
+	diskFileReader := &diskFileReader{
 		file:        file,
-		contentType: ContentTypeFromFileName(fileName),
+		contentType: contentTypeFromFileName(fileName),
 	}
 
 	return diskFileReader, nil
 }
 
-func (self *DiskFileStore) GetFileWriter(fileName string) (FileWriter, error) {
-	file, err := os.Create(self.fileNameToPath(fileName))
+func (diskFileStore *diskFileStore) GetFileWriter(fileName string) (fileWriter, error) {
+	file, err := os.Create(diskFileStore.fileNameToPath(fileName))
 	if err != nil {
 		return nil, err
 	}
 
-	diskFileWriter := &DiskFileWriter{
+	diskFileWriter := &diskFileWriter{
 		file: file,
 	}
 
 	return diskFileWriter, nil
 }
 
-func (self *DiskFileStore) RemoveFile(fileName string) error {
-	return os.Remove(self.fileNameToPath(fileName))
+func (diskFileStore *diskFileStore) RemoveFile(fileName string) error {
+	return os.Remove(diskFileStore.fileNameToPath(fileName))
 }
 
-func (self *DiskFileStore) fileNameToPath(fileName string) string {
+func (diskFileStore *diskFileStore) fileNameToPath(fileName string) string {
 	return filepath.Join(basePath, fileName)
 }
 
-type DiskFileReader struct {
+type diskFileReader struct {
 	file        *os.File
 	contentType string
 }
 
-func (self *DiskFileReader) ContentType() string {
-	return self.contentType
+func (diskFileReader *diskFileReader) ContentType() string {
+	return diskFileReader.contentType
 }
 
-func (self *DiskFileReader) Size() (int, error) {
-	fileInfo, err := self.file.Stat()
+func (diskFileReader *diskFileReader) Size() (int, error) {
+	fileInfo, err := diskFileReader.file.Stat()
 	if err != nil {
 		return -1, err
 	}
@@ -87,14 +87,14 @@ func (self *DiskFileReader) Size() (int, error) {
 	fileSizeInt64 := fileInfo.Size()
 
 	if fileSizeInt64 > math.MaxInt32 {
-		return -1, ErrFileTooBig
+		return -1, errFileTooBig
 	}
 
 	return int(fileSizeInt64), nil
 }
 
-func (self *DiskFileReader) ModTime() time.Time {
-	fi, err := self.file.Stat()
+func (diskFileReader *diskFileReader) ModTime() time.Time {
+	fi, err := diskFileReader.file.Stat()
 	if err != nil {
 		return time.Time{}
 	}
@@ -102,45 +102,45 @@ func (self *DiskFileReader) ModTime() time.Time {
 	return fi.ModTime()
 }
 
-func (self *DiskFileReader) Read(p []byte) (int, error) {
-	return self.file.Read(p)
+func (diskFileReader *diskFileReader) Read(p []byte) (int, error) {
+	return diskFileReader.file.Read(p)
 }
 
-func (self *DiskFileReader) Seek(offset int64, whence int) (int64, error) {
-	return self.file.Seek(offset, whence)
+func (diskFileReader *diskFileReader) Seek(offset int64, whence int) (int64, error) {
+	return diskFileReader.file.Seek(offset, whence)
 }
 
-func (self *DiskFileReader) Close() (err error) {
-	err = self.file.Close()
+func (diskFileReader *diskFileReader) Close() (err error) {
+	err = diskFileReader.file.Close()
 
 	if err == nil {
-		self.file = nil
+		diskFileReader.file = nil
 	}
 
 	return
 }
 
-type DiskFileWriter struct {
+type diskFileWriter struct {
 	file *os.File
 }
 
-func (self *DiskFileWriter) Write(p []byte) (int, error) {
-	bytesWritten, err := self.file.Write(p)
+func (diskFileWriter *diskFileWriter) Write(p []byte) (int, error) {
+	bytesWritten, err := diskFileWriter.file.Write(p)
 	if err != nil {
 		return bytesWritten, err
 	}
 
 	// the data written must be available for reading immediately as Write returns
-	err = self.file.Sync()
+	err = diskFileWriter.file.Sync()
 
 	return bytesWritten, err
 }
 
-func (self *DiskFileWriter) Close() (err error) {
-	err = self.file.Close()
+func (diskFileWriter *diskFileWriter) Close() (err error) {
+	err = diskFileWriter.file.Close()
 
 	if err == nil {
-		self.file = nil
+		diskFileWriter.file = nil
 	}
 
 	return

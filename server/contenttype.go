@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-func ContentTypeFromFileName(fileName string) string {
+func contentTypeFromFileName(fileName string) string {
 	ext := filepath.Ext(fileName)
 	if ext == ".mov" {
 		// "video/quicktime" is correct, but temporarily using "video/mp4" because it plays in Chrome.

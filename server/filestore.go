@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-type FileStore interface {
-	GetFileReader(fileName string) (FileReader, error)
-	GetFileWriter(fileName string) (FileWriter, error)
+type fileStore interface {
+	GetFileReader(fileName string) (fileReader, error)
+	GetFileWriter(fileName string) (fileWriter, error)
 	RemoveFile(fileName string) error
 }
 
-type FileReader interface {
+type fileReader interface {
 	ContentType() string
 	Size() (int, error)
 	io.ReadSeeker
@@ -21,7 +21,7 @@ type FileReader interface {
 	ModTime() time.Time
 }
 
-type FileWriter interface {
+type fileWriter interface {
 	Write(p []byte) (int, error)
 	Close() error
 }
