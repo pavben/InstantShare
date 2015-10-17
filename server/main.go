@@ -25,12 +25,6 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
-
-	// TODO: TLS
-	err = http.ListenAndServe(":27443", webHandler)
-	if err != nil {
-		log.Fatal("ListenAndServeTLS: ", err)
-	}
 }
 
 func getWebHandler(activeFileManager *ActiveFileManager, fileStore FileStore) http.Handler {
