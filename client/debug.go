@@ -10,7 +10,7 @@ import (
 
 func debugMenuItems() []trayhost.MenuItem {
 	return []trayhost.MenuItem{
-		trayhost.MenuItem{
+		{
 			Title: "Debug: Get Clipboard Content",
 			Handler: func() {
 				cc, err := trayhost.GetClipboardContent()
@@ -20,13 +20,13 @@ func debugMenuItems() []trayhost.MenuItem {
 				log.Printf("Files: len(%v) %v\n", len(cc.Files), cc.Files)
 			},
 		},
-		trayhost.MenuItem{
+		{
 			Title: "Debug: Set Clipboard Text",
 			Handler: func() {
 				trayhost.SetClipboardText("http://www.example.com/image.png")
 			},
 		},
-		trayhost.MenuItem{
+		{
 			Title: "Debug: Notification",
 			Handler: func() {
 				handler := func() {
