@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shurcooL/go/u/u4"
+	"github.com/shurcooL/go/open"
 	"github.com/shurcooL/trayhost"
 	_ "golang.org/x/image/tiff"
 )
@@ -121,7 +121,7 @@ func instantShareHandler() {
 		Timeout: 3 * time.Second,
 		Handler: func() {
 			// On click, open the displayed URL.
-			u4.Open(url)
+			open.Open(url)
 		},
 	}.Display()
 

@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/shurcooL/go/u/u4"
+	"github.com/shurcooL/go/open"
 	"github.com/shurcooL/trayhost"
 )
 
@@ -30,7 +30,7 @@ func debugMenuItems() []trayhost.MenuItem {
 			Title: "Debug: Notification",
 			Handler: func() {
 				handler := func() {
-					u4.Open("http://www.example.com/image.png")
+					open.Open("http://www.example.com/image.png")
 				}
 				notification := trayhost.Notification{Title: "Success", Body: "http://www.example.com/image.png", Timeout: 3 * time.Second, Handler: handler}
 				//trayhost.Notification{Title: "Upload Failed", Body: "error description goes here"}.Display()
