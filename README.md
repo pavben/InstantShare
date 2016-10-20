@@ -17,9 +17,9 @@ The client runs in your operating system's tray bar for quick access. The server
 Platforms
 ---------
 
-Instant Share client is fully supported on OS X. Linux and Windows clients are possible pending support being implemented in [`trayhost`](https://github.com/shurcooL/trayhost) package that Instant Share client uses for creating a tray icon.
+Instant Share client is fully supported on macOS. Linux and Windows clients are possible pending support being implemented in [`trayhost`](https://github.com/shurcooL/trayhost) package that Instant Share client uses for creating a tray icon.
 
-Instant Share server runs on OS X, Linux, Windows or any other platform that Go supports.
+Instant Share server runs on macOS, Linux, Windows or any other platform that Go supports.
 
 Screenshots
 -----------
