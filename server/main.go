@@ -55,7 +55,11 @@ func getWebHandler(activeFileManager *activeFileManager, fileStore fileStore) ht
 		case len(path) == 2 && path[0] == "api" && path[1] == "getfilename" && method == "GET":
 			fileExtension := req.URL.Query().Get("ext")
 
-			newFilename := activeFileManager.PrepareUpload(fileExtension, "USERKEYTODO")
+			newFilename, err := activeFileManager.PrepareUpload(fileExtension, "USERKEYTODO")
+			if err != nil {
+				http.Error(res, err.Error(), http.StatusInternalServerError)
+				return
+			}
 
 			log.Println("/api/getfilename returning", newFilename)
 

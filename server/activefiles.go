@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pavben/InstantShare/id"
 	"github.com/pavben/InstantShare/server/timeout"
 )
 
@@ -56,12 +57,15 @@ func newActiveFileManager(fileStore fileStore) *activeFileManager {
 	}
 }
 
-func (afm *activeFileManager) PrepareUpload(fileExtension string, userKey string) string {
+func (afm *activeFileManager) PrepareUpload(fileExtension string, userKey string) (string, error) {
 	afm.Lock()
 	defer afm.Unlock()
 
 	for {
-		fileName := generateRandomString()
+		fileName, err := id.Generate()
+		if err != nil {
+			return "", err
+		}
 		if fileExtension != "" {
 			fileName += "." + fileExtension
 		}
@@ -85,7 +89,7 @@ func (afm *activeFileManager) PrepareUpload(fileExtension string, userKey string
 			})
 			afm.activeFiles[fileName] = activeFile
 
-			return fileName
+			return fileName, nil
 		}
 	}
 }
