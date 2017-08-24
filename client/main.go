@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"image"
 	"image/png"
 	"io/ioutil"
@@ -103,6 +104,13 @@ func instantShareHandler() {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(resp.Body)
+		err := fmt.Errorf("did not get acceptable status code: %v body: %q", resp.Status, body)
+		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
+		log.Println(err)
+		return
+	}
 	filename, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		trayhost.Notification{Title: "Upload Failed", Body: err.Error()}.Display()
